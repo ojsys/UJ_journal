@@ -1,0 +1,189 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Login{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-container {
+        max-width: 450px;
+        margin: 3rem auto;
+    }
+    
+    .auth-card {
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .auth-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .auth-header h2 {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .auth-body {
+        padding: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-control {
+        padding: 0.75rem 1rem;
+    }
+    
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
+    }
+    
+    .btn-auth {
+        background-color: var(--primary-color);
+        border: none;
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        width: 100%;
+    }
+    
+    .auth-footer {
+        text-align: center;
+        padding: 1rem;
+        border-top: 1px solid #eee;
+    }
+    
+    .input-icon-wrapper {
+        position: relative;
+    }
+    
+    .input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+    
+    .input-with-icon {
+        padding-left: 2.5rem;
+    }
+    
+    .password-toggle {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #6c757d;
+    }
+    
+    .remember-me {
+        display: flex;
+        align-items: center;
+    }
+    
+    .remember-me input {
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h2>Welcome Back</h2>
+                <p>Login to your account</p>
+            </div>
+            <div class="auth-body">
+                {% if messages %}
+                <div class="alert alert-danger">
+                    {% for message in messages %}
+                    <p {% if message.tags %}class="{{ message.tags }}"{% endif %}>{{ message }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if request.GET.next %}
+                    <input type="hidden" name="next" value="{{ request.GET.next }}">
+                    {% endif %}
+                    <div class="form-group">
+                        <label for="id_email">Email Address</label>
+                        <div class="input-icon-wrapper">
+                            <i class="material-icons input-icon">email</i>
+                            <input type="email" name="email" id="id_email" class="form-control input-with-icon {% if form.email.errors %}is-invalid{% endif %}" placeholder="Enter your email address" value="{{ form.email.value|default:'' }}">
+                        </div>
+                        {% if form.email.errors %}
+                        <div class="invalid-feedback">
+                            {{ form.email.errors.0 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_password">Password</label>
+                        <div class="input-icon-wrapper">
+                            <i class="material-icons input-icon">lock</i>
+                            <input type="password" name="password" id="id_password" class="form-control input-with-icon {% if form.password.errors %}is-invalid{% endif %}" placeholder="Enter your password">
+                            <i class="material-icons password-toggle" onclick="togglePassword('id_password')">visibility_off</i>
+                        </div>
+                        {% if form.password.errors %}
+                        <div class="invalid-feedback">
+                            {{ form.password.errors.0 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="remember-me">
+                            <input type="checkbox" name="remember" id="id_remember">
+                            <label for="id_remember">Remember me</label>
+                        </div>
+                        <a href="{% url 'password_reset' %}">Forgot password?</a>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-auth">
+                        <i class="material-icons me-1" style="font-size: 16px;">login</i> Login
+                    </button>
+                </form>
+            </div>
+            <div class="auth-footer">
+                Don't have an account? <a href="{% url 'register' %}">Register here</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePassword(inputId) {
+        const input = document.getElementById(inputId);
+        const icon = input.nextElementSibling;
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.textContent = 'visibility';
+        } else {
+            input.type = 'password';
+            icon.textContent = 'visibility_off';
+        }
+    }
+</script>
+{% endblock %}

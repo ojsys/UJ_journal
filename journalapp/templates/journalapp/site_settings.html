@@ -1,0 +1,73 @@
+{% extends 'journalapp/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Site Settings</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>General Settings</h5>
+                                {{ form.site_title|as_crispy_field }}
+                                {{ form.site_description|as_crispy_field }}
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form.logo|as_crispy_field }}
+                                        {% if site_settings.logo %}
+                                            <img src="{{ site_settings.logo.url }}" alt="Current Logo" class="img-thumbnail mb-3" style="max-height: 100px;">
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.favicon|as_crispy_field }}
+                                        {% if site_settings.favicon %}
+                                            <img src="{{ site_settings.favicon.url }}" alt="Current Favicon" class="img-thumbnail mb-3" style="max-height: 100px;">
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <h5 class="mt-4">Colors</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        {{ form.primary_color|as_crispy_field }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        {{ form.secondary_color|as_crispy_field }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h5>Contact Information</h5>
+                                {{ form.contact_email|as_crispy_field }}
+                                {{ form.contact_phone|as_crispy_field }}
+                                
+                                <h5 class="mt-4">Social Media</h5>
+                                {{ form.facebook_url|as_crispy_field }}
+                                {{ form.twitter_url|as_crispy_field }}
+                                {{ form.instagram_url|as_crispy_field }}
+                                {{ form.linkedin_url|as_crispy_field }}
+                                
+                                <h5 class="mt-4">Footer</h5>
+                                {{ form.footer_text|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary">Save Settings</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

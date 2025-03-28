@@ -1,0 +1,26 @@
+{% extends 'journalapp/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Delete Hero Slide</h4>
+                </div>
+                <div class="card-body text-center">
+                    <img src="{{ slide.image.url }}" alt="{{ slide.title }}" class="img-fluid mb-3" style="max-height: 200px;">
+                    <h5>Are you sure you want to delete "{{ slide.title }}"?</h5>
+                    <p class="text-muted">This action cannot be undone.</p>
+                    
+                    <form method="POST">
+                        {% csrf_token %}
+                        <a href="{% url 'hero_slides' %}" class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

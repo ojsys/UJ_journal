@@ -1,0 +1,320 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Hero Carousel Styling */
+    #heroCarousel {
+        margin-bottom: 3rem;
+    }
+    
+    #heroCarousel .carousel-item {
+        height: 600px;
+    }
+    
+    #heroCarousel .carousel-caption {
+        bottom: 5rem;
+        z-index: 10;
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 2rem;
+        border-radius: 8px;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    #heroCarousel .carousel-caption h2 {
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    /* Journal Cards */
+    .journal-card {
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .journal-card:hover {
+        transform: translateY(-10px);
+    }
+    
+    .journal-card .card-title {
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    
+    /* Department Journal Cards */
+    .department-journal-card {
+        text-align: center;
+        transition: all 0.3s ease;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 8px;
+    }
+    
+    .department-journal-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    
+    .department-journal-card .card-img-overlay {
+        background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.8));
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 1.5rem;
+    }
+    
+    .department-journal-card .card-title {
+        color: white;
+        font-weight: 700;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+    }
+    
+    .department-journal-card .card-text {
+        color: rgba(255,255,255,0.9);
+    }
+    
+    .department-journal-card .btn {
+        margin-top: 1rem;
+        background-color: white;
+        color: var(--primary-color);
+        font-weight: 600;
+        border: none;
+    }
+    
+    .department-journal-card .btn:hover {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    /* Article Cards */
+    .article-card {
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .article-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .article-meta {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    /* Call to Action Section */
+    .cta-section {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 3rem;
+        margin-top: 4rem;
+    }
+    
+    .cta-section h3 {
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .cta-btn {
+        background-color: white;
+        color: var(--primary-color);
+        border: none;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .cta-btn:hover {
+        background-color: rgba(255, 255, 255, 0.9);
+        transform: translateY(-3px);
+    }
+    
+    .welcome-section {
+        padding: 4rem 0;
+    }
+    
+    .welcome-section h1 {
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+    }
+    
+    .section-heading {
+        position: relative;
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+        font-weight: 700;
+    }
+    
+    .section-heading::after {
+        content: '';
+        position: absolute;
+        width: 70px;
+        height: 4px;
+        background-color: var(--primary-color);
+        bottom: 0;
+        left: 0;
+    }
+    
+    .section-heading.text-center::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Slider -->
+{% if hero_slides %}
+<div id="heroCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel">
+    <div class="carousel-indicators">
+        {% for slide in hero_slides %}
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active"{% endif %}></button>
+        {% endfor %}
+    </div>
+    <div class="carousel-inner">
+        {% for slide in hero_slides %}
+        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+            <img src="{{ slide.image.url }}" class="d-block w-100" alt="{{ slide.title }}" style="height: 600px; object-fit: cover;">
+            <div class="carousel-caption">
+                <h2>{{ slide.title }}</h2>
+                <p class="lead">{{ slide.subtitle }}</p>
+                {% if slide.button_text and slide.button_url %}
+                <a href="{{ slide.button_url }}" class="btn btn-light cta-btn mt-3">{{ slide.button_text }}</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+    </button>
+</div>
+{% endif %}
+
+<div class="container">
+    <!-- Welcome Section -->
+    <div class="welcome-section text-center">
+        <h1 class="display-4">Welcome to {{ site_settings.site_title|default:"University of Jos Journal System" }}</h1>
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <p class="lead">{{ site_settings.site_description|default:"A platform for publishing and accessing academic journals from various departments." }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Department Journals Section -->
+    <div class="mb-5">
+        <h2 class="section-heading">Department Journals</h2>
+        <div class="row">
+            {% for department in departments %}
+            <div class="col-md-4 mb-4">
+                <div class="card department-journal-card h-100">
+                    {% if department.cover_image %}
+                    <img src="{{ department.cover_image.url }}" class="card-img" alt="{{ department.name }} Journal" style="height: 250px; object-fit: cover;">
+                    {% else %}
+                    <div class="bg-primary" style="height: 250px;">
+                        <div class="d-flex align-items-center justify-content-center h-100">
+                            <h1 class="text-white display-4 fw-bold">{{ department.code }}</h1>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="card-img-overlay">
+                        <h5 class="card-title">{{ department.get_journal_title }}</h5>
+                        <p class="card-text">{{ department.journal_description|truncatewords:10|default:"Academic journal from the Department of " }}{{ department.name }}</p>
+                        <a href="{% url 'department_journal' department.id %}" class="btn btn-sm">View Journal</a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info d-flex align-items-center">
+                    <i class="material-icons me-2">info</i>
+                    No departments available yet.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Latest Articles Section -->
+    <div class="mb-5">
+        <h2 class="section-heading">Latest Published Articles</h2>
+        <div class="row">
+            {% for article in latest_articles %}
+            <div class="col-md-4 mb-4">
+                <div class="card article-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="material-icons text-primary me-2">article</i>
+                            <h5 class="card-title mb-0">{{ article.title }}</h5>
+                        </div>
+                        <h6 class="card-subtitle mb-3 text-muted d-flex align-items-center">
+                            <i class="material-icons me-1" style="font-size: 16px;">school</i>
+                            {{ article.department.get_journal_title }}
+                        </h6>
+                        <p class="card-text">{{ article.abstract|truncatewords:30|safe }}</p>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted d-flex align-items-center">
+                                <i class="material-icons me-1" style="font-size: 14px;">calendar_today</i>
+                                {{ article.published_at|date:"M d, Y" }}
+                            </small>
+                            <a href="{% url 'article_detail' article.pk %}" class="btn btn-sm btn-primary">Read More</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info d-flex align-items-center">
+                    <i class="material-icons me-2">info</i>
+                    No published articles yet.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-4">
+            <a href="{% url 'article_list' %}" class="btn btn-outline-primary">
+                <i class="material-icons me-1" style="font-size: 16px;">visibility</i>
+                View All Articles
+            </a>
+        </div>
+    </div>
+    
+    <!-- Call to Action Section -->
+    <div class="cta-section text-center">
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <h3>Are you a researcher or academic?</h3>
+                <p class="lead">Submit your article for publication in your department's journal.</p>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'article_create' %}" class="btn cta-btn btn-lg mt-3">
+                        <i class="material-icons me-1" style="font-size: 18px;">add_circle</i>
+                        Submit Your Article
+                    </a>
+                {% else %}
+                    <div class="mt-4">
+                        <a href="{% url 'register' %}" class="btn cta-btn btn-lg me-3">
+                            <i class="material-icons me-1" style="font-size: 18px;">person_add</i>
+                            Register
+                        </a>
+                        <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">
+                            <i class="material-icons me-1" style="font-size: 18px;">login</i>
+                            Login
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

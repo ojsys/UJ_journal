@@ -1,0 +1,249 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Journal Filter{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-form {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .filter-form .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .filter-form label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    
+    .filter-form .btn-primary {
+        margin-top: 1rem;
+    }
+    
+    .filter-header {
+        margin-bottom: 2rem;
+    }
+    
+    .filter-header h2 {
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .filter-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1.5rem;
+    }
+    
+    .filter-badge {
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 50px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        margin-right: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .filter-badge .material-icons {
+        font-size: 14px;
+        margin-left: 0.25rem;
+        cursor: pointer;
+    }
+    
+    .active-filters {
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="filter-header">
+                <h2 class="text-center">Advanced Journal Search</h2>
+                <p class="text-center text-muted">Use the filters below to find specific journals</p>
+            </div>
+            
+            <!-- Active Filters -->
+            {% if request.GET %}
+            <div class="active-filters">
+                <h5 class="mb-3">Active Filters:</h5>
+                <div>
+                    {% for key, value in request.GET.items %}
+                    {% if value and key != 'page' %}
+                    <span class="filter-badge">
+                        {{ key|title }}: {{ value }}
+                        <a href="?{% for k, v in request.GET.items %}{% if k != key and k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}" class="text-white">
+                            <i class="material-icons">close</i>
+                        </a>
+                    </span>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if request.GET %}
+                    <a href="{% url 'journal_filter' %}" class="btn btn-sm btn-outline-secondary ms-2">
+                        <i class="material-icons" style="font-size: 14px;">clear</i> Clear All
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Filter Form -->
+            <div class="filter-form">
+                <form method="get" action="">
+                    <div class="row">
+                        <!-- Title Filter -->
+                        <div class="col-md-6 form-group">
+                            <label for="id_title">Title Contains:</label>
+                            {{ filter.form.title }}
+                        </div>
+                        
+                        <!-- Author Filter -->
+                        <div class="col-md-6 form-group">
+                            <label for="id_author">Author:</label>
+                            {{ filter.form.author }}
+                        </div>
+                        
+                        <!-- Department Filter -->
+                        <div class="col-md-6 form-group">
+                            <label for="id_department">Department:</label>
+                            {{ filter.form.department }}
+                        </div>
+                        
+                        <!-- Category Filter -->
+                        <div class="col-md-6 form-group">
+                            <label for="id_category">Category:</label>
+                            {{ filter.form.category }}
+                        </div>
+                        
+                        <!-- Date Range Filter -->
+                        <div class="col-md-6 form-group">
+                            <label for="id_published_at_after">Published After:</label>
+                            {{ filter.form.published_at_after }}
+                        </div>
+                        
+                        <div class="col-md-6 form-group">
+                            <label for="id_published_at_before">Published Before:</label>
+                            {{ filter.form.published_at_before }}
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="material-icons me-1" style="font-size: 16px;">search</i> Search Journals
+                        </button>
+                        <a href="{% url 'journal_filter' %}" class="btn btn-outline-secondary">
+                            <i class="material-icons me-1" style="font-size: 16px;">refresh</i> Reset
+                        </a>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Results Count -->
+            <div class="alert alert-light d-flex align-items-center mb-4">
+                <i class="material-icons me-2">info</i>
+                <span>Found <strong>{{ filter.qs.count }}</strong> journals matching your criteria</span>
+            </div>
+            
+            <!-- Results -->
+            <div class="row">
+                {% for journal in filter.qs %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ journal.title }}</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="material-icons me-1" style="font-size: 16px;">person</i>
+                                {{ journal.author.get_full_name|default:journal.author.username }}
+                            </h6>
+                            <div class="mb-3">
+                                <span class="badge bg-primary">{{ journal.department.name }}</span>
+                                <span class="badge bg-secondary">{{ journal.category.name }}</span>
+                                {% if journal.published_at %}
+                                <span class="badge bg-info">{{ journal.published_at|date:"M Y" }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="card-text">{{ journal.abstract|truncatewords:20 }}</p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{% url 'journal_detail' journal.pk %}" class="btn btn-sm btn-primary">
+                                <i class="material-icons me-1" style="font-size: 14px;">visibility</i> View Details
+                            </a>
+                            {% if journal.file %}
+                            <a href="{{ journal.file.url }}" class="btn btn-sm btn-outline-primary ms-2" download>
+                                <i class="material-icons me-1" style="font-size: 14px;">download</i> Download
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info d-flex align-items-center">
+                        <i class="material-icons me-2">info</i>
+                        No journals found matching your criteria. Try adjusting your filters.
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <div class="d-flex justify-content-center mt-4">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

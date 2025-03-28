@@ -1,0 +1,28 @@
+WELCOME TO UNIVERSITY JOURNAL
+Your Gateway to Academic Excellence
+
+Hello {{ user.first_name|default:user.username }},
+
+Thank you for joining University Journal! We're thrilled to welcome you to our growing community of researchers, academics, and knowledge seekers.
+
+YOUR ACCOUNT HAS BEEN SUCCESSFULLY CREATED AND IS READY TO USE.
+
+WHAT YOU CAN DO WITH YOUR ACCOUNT:
+- Submit Articles - Share your research with the academic community
+- Collaborate - Connect with other researchers in your field
+- Stay Updated - Access the latest publications in your area of interest
+- Engage - Participate in academic discussions and peer reviews
+
+We've designed University Journal to be a platform where knowledge thrives and academic excellence is celebrated.
+
+To get started, visit your dashboard: {{ site_url }}{% url 'dashboard' %}
+
+If you have any questions or need assistance, our support team is always ready to help. Simply reply to this email or contact us through our support portal.
+
+Best regards,
+The University Journal Team
+
+© {% now "Y" %} University Journal. All rights reserved.
+This email was sent to {{ user.email }}
+
+If you did not sign up for this account, please disregard this email.

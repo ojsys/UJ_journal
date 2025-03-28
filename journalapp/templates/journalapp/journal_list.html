@@ -1,0 +1,39 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Journals{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">University Journals</h1>
+    
+    <div class="row">
+        {% for journal in journals %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if journal.cover_image %}
+                <img src="{{ journal.cover_image.url }}" class="card-img-top" alt="{{ journal.name }}">
+                {% else %}
+                <div class="card-img-top bg-light text-center py-5">
+                    <i class="fas fa-book fa-3x text-muted"></i>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">Journal of {{ journal.name }}</h5>
+                    <p class="card-text">{{ journal.description|truncatewords:20 }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-primary">{{ journal.article_count }} Articles</span>
+                        <a href="{% url 'department_journal' journal.id %}" class="btn btn-outline-primary">View Journal</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No journals available at this time.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to University Journal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3498db 0%, #1a5276 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .header p {
+            margin: 10px 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+            background-color: #ffffff;
+        }
+        
+        .welcome-message {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .features {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .features h3 {
+            margin-top: 0;
+            color: #3498db;
+            font-size: 18px;
+        }
+        
+        .features ul {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+        
+        .features li {
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 16px;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+        }
+        
+        .signature {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .social-links {
+            margin: 15px 0;
+        }
+        
+        .social-icon {
+            display: inline-block;
+            margin: 0 5px;
+            width: 32px;
+            height: 32px;
+            background-color: #3498db;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 32px;
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+        }
+        
+        .highlight-box {
+            background-color: #e8f4fc;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .header {
+                padding: 20px 15px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Welcome to University Journal</h1>
+            <p>Your Gateway to Academic Excellence</p>
+        </div>
+        
+        <div class="content">
+            <p class="welcome-message">Hello {{ user.first_name|default:user.username }},</p>
+            
+            <p>Thank you for joining University Journal! We're thrilled to welcome you to our growing community of researchers, academics, and knowledge seekers.</p>
+            
+            <div class="highlight-box">
+                <p>Your account has been successfully created and is ready to use.</p>
+            </div>
+            
+            <div class="features">
+                <h3>What You Can Do With Your Account</h3>
+                <ul>
+                    <li><strong>Submit Articles</strong> - Share your research with the academic community</li>
+                    <li><strong>Collaborate</strong> - Connect with other researchers in your field</li>
+                    <li><strong>Stay Updated</strong> - Access the latest publications in your area of interest</li>
+                    <li><strong>Engage</strong> - Participate in academic discussions and peer reviews</li>
+                </ul>
+            </div>
+            
+            <p>We've designed University Journal to be a platform where knowledge thrives and academic excellence is celebrated.</p>
+            
+            <div class="button-container">
+                <a href="{{ site_url }}{% url 'dashboard' %}" class="button">Go to Your Dashboard</a>
+            </div>
+            
+            <p>If you have any questions or need assistance, our support team is always ready to help. Simply reply to this email or contact us through our support portal.</p>
+            
+            <div class="signature">
+                <p>Best regards,<br>
+                <strong>The University Journal Team</strong></p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="social-links">
+                <a href="#" class="social-icon">f</a>
+                <a href="#" class="social-icon">t</a>
+                <a href="#" class="social-icon">in</a>
+            </div>
+            <p>© {% now "Y" %} University Journal. All rights reserved.</p>
+            <p>This email was sent to {{ user.email }}</p>
+            <p><small>If you did not sign up for this account, please disregard this email.</small></p>
+        </div>
+    </div>
+</body>
+</html>

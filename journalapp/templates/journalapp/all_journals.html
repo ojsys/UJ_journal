@@ -1,0 +1,129 @@
+{% extends 'journalapp/base.html' %}
+{% load humanize %}
+
+{% block title %}All Journals{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Sidebar with filters -->
+        <div class="col-lg-3 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Filter Journals</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">Departments</h6>
+                    <div class="list-group mb-4">
+                        <a href="{% url 'all_journals' %}" class="list-group-item list-group-item-action {% if not request.GET.department %}active{% endif %}">
+                            All Departments
+                        </a>
+                        {% for dept in departments %}
+                        <a href="{% url 'all_journals' %}?department={{ dept.id }}" class="list-group-item list-group-item-action {% if request.GET.department == dept.id|stringformat:'i' %}active{% endif %}">
+                            {{ dept.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    
+                    <form method="get" action="{% url 'all_journals' %}">
+                        <div class="mb-3">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" class="form-control" id="search" name="search" placeholder="Search journals..." value="{{ request.GET.search|default:'' }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Journal list -->
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">All Journals</h2>
+                <div class="d-flex">
+                    <div class="dropdown me-2">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            Sort by
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+                            <li><a class="dropdown-item" href="{% url 'all_journals' %}?{% if request.GET.department %}department={{ request.GET.department }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=newest">Newest First</a></li>
+                            <li><a class="dropdown-item" href="{% url 'all_journals' %}?{% if request.GET.department %}department={{ request.GET.department }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=oldest">Oldest First</a></li>
+                            <li><a class="dropdown-item" href="{% url 'all_journals' %}?{% if request.GET.department %}department={{ request.GET.department }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}sort=title">Title (A-Z)</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            {% if journals %}
+                <div class="row">
+                    {% for journal in journals %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ journal.title }}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">{{ journal.department.name }}</h6>
+                                <p class="card-text text-truncate">{{ journal.abstract }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">Published {{ journal.published_at|naturaltime }}</small>
+                                    <a href="{% url 'article_detail' journal.pk %}" class="btn btn-sm btn-primary">Read More</a>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <small class="text-muted">By {{ journal.author.get_full_name|default:journal.author.email }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No journals found. Please try different search criteria.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

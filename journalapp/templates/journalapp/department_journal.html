@@ -1,0 +1,122 @@
+{% extends 'journalapp/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ department.get_journal_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .journal-header {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .journal-cover {
+        max-width: 250px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        border-radius: 5px;
+    }
+    
+    .article-card {
+        transition: all 0.3s ease;
+        border-radius: 8px;
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .article-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .article-meta {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .article-abstract {
+        color: #495057;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="journal-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center mb-4 mb-md-0">
+                {% if department.cover_image %}
+                <img src="{{ department.cover_image.url }}" alt="{{ department.get_journal_title }}" class="img-fluid journal-cover">
+                {% else %}
+                <div class="journal-cover bg-secondary d-flex align-items-center justify-content-center" style="height: 350px;">
+                    <h2 class="text-white">{{ department.code }}</h2>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-9">
+                <h1 class="display-4 fw-bold">{{ department.get_journal_title }}</h1>
+                <p class="lead">{{ department.journal_description }}</p>
+                <div class="mt-4">
+                    <span class="badge bg-light text-dark me-2">Department: {{ department.name }}</span>
+                    <span class="badge bg-light text-dark me-2">Articles: {{ articles.count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mb-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Published Articles</h2>
+                {% if user.is_authenticated and user.profile.department == department %}
+                <a href="{% url 'article_create' %}" class="btn btn-primary">
+                    <i class="material-icons me-1" style="font-size: 16px;">add</i> Submit New Article
+                </a>
+                {% endif %}
+            </div>
+            <hr>
+        </div>
+    </div>
+    
+    {% if articles %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for article in articles %}
+        <div class="col">
+            <div class="card article-card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ article.title }}</h5>
+                    <p class="article-meta">
+                        <i class="material-icons" style="font-size: 16px; vertical-align: text-bottom;">person</i> 
+                        {{ article.author.get_full_name|default:article.author.email }}
+                        <span class="mx-1">•</span>
+                        <i class="material-icons" style="font-size: 16px; vertical-align: text-bottom;">calendar_today</i> 
+                        {{ article.published_at|date:"M d, Y" }}
+                    </p>
+                    <p class="article-abstract">{{ article.abstract|truncatewords:30|safe }}</p>
+                </div>
+                <div class="card-footer bg-transparent border-top-0">
+                    <a href="{% url 'article_detail' article.pk %}" class="btn btn-sm btn-outline-primary mb-2">Read More</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="material-icons" style="font-size: 4rem; color: #ddd;">article</i>
+        <p class="lead mt-3">No articles have been published in this journal yet.</p>
+        {% if user.is_authenticated and user.profile.department == department %}
+        <a href="{% url 'article_create' %}" class="btn btn-primary">Submit the First Article</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

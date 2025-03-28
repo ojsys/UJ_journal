@@ -1,0 +1,663 @@
+{% extends 'journalapp/base.html' %}
+{% load crispy_forms_tags %}
+{% load humanize %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-container {
+        display: flex;
+        min-height: calc(100vh - 56px);
+    }
+    
+    .sidebar {
+        width: 250px;
+        background-color: #343a40;
+        color: #fff;
+        transition: all 0.3s;
+        box-shadow: 3px 0 10px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar-sticky {
+        position: sticky;
+        top: 0;
+        height: calc(100vh - 56px);
+        padding-top: 1rem;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+    
+    .sidebar .nav-link {
+        color: rgba(255, 255, 255, 0.75);
+        padding: 0.75rem 1rem;
+        font-weight: 500;
+        border-left: 3px solid transparent;
+    }
+    
+    .sidebar .nav-link:hover {
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .sidebar .nav-link.active {
+        color: #fff;
+        border-left-color: var(--primary-color);
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .sidebar .nav-link i {
+        margin-right: 0.5rem;
+        width: 20px;
+        text-align: center;
+    }
+    
+    .sidebar-heading {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        padding: 1rem;
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: bold;
+    }
+    
+    .sidebar-profile {
+        padding: 1rem;
+        text-align: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 1rem;
+    }
+    
+    .sidebar-profile img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .sidebar-profile h5 {
+        margin-top: 0.75rem;
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+    
+    .sidebar-profile p {
+        font-size: 0.85rem;
+        opacity: 0.75;
+        margin-bottom: 0;
+    }
+    
+    .main-content {
+        flex: 1;
+        padding: 1.5rem;
+        background-color: #f8f9fa;
+    }
+    
+    .card-stats {
+        border-left: 4px solid;
+        border-radius: 4px;
+    }
+    
+    .card-stats.primary {
+        border-left-color: var(--primary-color);
+    }
+    
+    .card-stats.success {
+        border-left-color: #28a745;
+    }
+    
+    .card-stats.info {
+        border-left-color: #17a2b8;
+    }
+    
+    .card-stats.warning {
+        border-left-color: #ffc107;
+    }
+    
+    .card-stats .icon-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0,0,0,0.1);
+    }
+    
+    .card-stats.primary .icon-circle {
+        background-color: rgba(0, 123, 255, 0.1);
+        color: var(--primary-color);
+    }
+    
+    .card-stats.success .icon-circle {
+        background-color: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+    }
+    
+    .card-stats.info .icon-circle {
+        background-color: rgba(23, 162, 184, 0.1);
+        color: #17a2b8;
+    }
+    
+    .card-stats.warning .icon-circle {
+        background-color: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+    }
+    
+    .welcome-banner {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .welcome-banner h2 {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .badge-status {
+        font-size: 0.75rem;
+        padding: 0.35em 0.65em;
+    }
+    
+    .article-empty-state {
+        text-align: center;
+        padding: 3rem 0;
+    }
+    
+    .article-empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+    
+    .article-empty-state p {
+        font-size: 1.25rem;
+        color: #6c757d;
+        margin-bottom: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .sidebar {
+            width: 100%;
+            position: fixed;
+            z-index: 999;
+            transform: translateX(-100%);
+        }
+        
+        .sidebar.show {
+            transform: translateX(0);
+        }
+        
+        .main-content {
+            margin-left: 0;
+        }
+        
+        .toggle-sidebar {
+            display: block !important;
+        }
+    }
+    
+    .toggle-sidebar {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: var(--primary-color);
+        color: white;
+        text-align: center;
+        line-height: 50px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-sticky">
+            <div class="sidebar-profile">
+                {% if user.profile.profile_picture %}
+                    <img src="{{ user.profile.profile_picture.url }}" alt="{{ user.get_full_name }}">
+                {% else %}
+                    <img src="https://via.placeholder.com/80" alt="Profile">
+                {% endif %}
+                <h5>{{ user.get_full_name|default:user.email }}</h5>
+                <p>{{ user.profile.department.name|default:"No Department" }}</p>
+            </div>
+            
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="{% url 'dashboard' %}">
+                        <i class="material-icons">dashboard</i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'profile' %}">
+                        <i class="material-icons">person</i> Profile
+                    </a>
+                </li>
+                
+                <div class="sidebar-heading">Department Journal</div>
+                
+                {% if user.profile.department %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'department_journal' user.profile.department.id %}">
+                        <i class="material-icons">book</i> View Journal
+                    </a>
+                </li>
+                {% endif %}
+                
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'article_create' %}">
+                        <i class="material-icons">add_circle</i> Submit Article
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'article_list' %}">
+                        <i class="material-icons">list</i> Browse Articles
+                    </a>
+                </li>
+                
+                {% if user.profile.is_editor %}
+                <div class="sidebar-heading">Editor</div>
+                <li class="nav-item">
+                    <a class="nav-link" href="#pending-tab" data-bs-toggle="tab" data-bs-target="#pending">
+                        <i class="material-icons">pending</i> Pending Approval
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if user.profile.is_reviewer %}
+                <div class="sidebar-heading">Reviewer</div>
+                <li class="nav-item">
+                    <a class="nav-link" href="#review-tab" data-bs-toggle="tab" data-bs-target="#review">
+                        <i class="material-icons">rate_review</i> For Review
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if user.is_staff %}
+                <div class="sidebar-heading">Admin</div>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'admin:index' %}">
+                        <i class="material-icons">admin_panel_settings</i> Admin Panel
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'site_settings' %}">
+                        <i class="material-icons">settings</i> Site Settings
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'hero_slides' %}">
+                        <i class="material-icons">slideshow</i> Hero Slides
+                    </a>
+                </li>
+                {% endif %}
+                
+                <div class="sidebar-heading">Account</div>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'logout' %}">
+                        <i class="material-icons">logout</i> Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Welcome Banner -->
+        <div class="welcome-banner">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h2>Welcome, {{ user.get_full_name|default:user.email }}</h2>
+                    <p class="mb-0">{{ user.profile.department.name|default:"" }}</p>
+                </div>
+                <div class="d-none d-md-block">
+                    <a href="{% url 'profile' %}" class="btn btn-light btn-sm me-2">Edit Profile</a>
+                    <a href="{% url 'article_create' %}" class="btn btn-success btn-sm">New Article</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 col-sm-6 mb-4 mb-md-0">
+                <div class="card card-stats primary h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 text-uppercase fw-bold small">Total Articles</p>
+                                <h5 class="fw-bold mb-0">{{ user_articles.count }}</h5>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="material-icons">article</i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-sm-6 mb-4 mb-md-0">
+                <div class="card card-stats success h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 text-uppercase fw-bold small">Published</p>
+                                <h5 class="fw-bold mb-0">{{ user_articles.published.count|default:"0" }}</h5>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="material-icons">check_circle</i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-sm-6 mb-4 mb-md-0">
+                <div class="card card-stats info h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 text-uppercase fw-bold small">Under Review</p>
+                                <h5 class="fw-bold mb-0">{{ user_articles.under_review.count|default:"0" }}</h5>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="material-icons">hourglass_empty</i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 col-sm-6 mb-4 mb-md-0">
+                <div class="card card-stats warning h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 text-uppercase fw-bold small">Drafts</p>
+                                <h5 class="fw-bold mb-0">{{ user_articles.draft.count|default:"0" }}</h5>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="material-icons">edit</i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 fw-bold text-primary">Manage Your Content</h6>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="articles-tab" data-bs-toggle="tab" data-bs-target="#articles" type="button" role="tab" aria-controls="articles" aria-selected="true">My Articles</button>
+                    </li>
+                    {% if user.profile.is_editor %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" aria-controls="pending" aria-selected="false">Pending Approval</button>
+                    </li>
+                    {% endif %}
+                    {% if user.profile.is_reviewer %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="review-tab" data-bs-toggle="tab" data-bs-target="#review" type="button" role="tab" aria-controls="review" aria-selected="false">For Review</button>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="tab-content pt-4" id="dashboardTabsContent">
+                    <!-- My Articles Tab -->
+                    <div class="tab-pane fade show active" id="articles" role="tabpanel" aria-labelledby="articles-tab">
+                        {% if user_articles %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="articlesTable" width="100%" cellspacing="0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Category</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for article in user_articles %}
+                                    <tr>
+                                        <td>{{ article.title }}</td>
+                                        <td>{{ article.category.name }}</td>
+                                        <td>
+                                            {% if article.status == 'draft' %}
+                                            <span class="badge bg-secondary badge-status">Draft</span>
+                                            {% elif article.status == 'submitted' %}
+                                            <span class="badge bg-primary badge-status">Submitted</span>
+                                            {% elif article.status == 'under_review' %}
+                                            <span class="badge bg-info badge-status">Under Review</span>
+                                            {% elif article.status == 'revision_required' %}
+                                            <span class="badge bg-warning badge-status">Revision Required</span>
+                                            {% elif article.status == 'accepted' %}
+                                            <span class="badge bg-success badge-status">Accepted</span>
+                                            {% elif article.status == 'rejected' %}
+                                            <span class="badge bg-danger badge-status">Rejected</span>
+                                            {% elif article.status == 'published' %}
+                                            <span class="badge bg-success badge-status">Published</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ article.created_at|naturaltime }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'article_detail' article.pk %}" class="btn btn-sm btn-info">View</a>
+                                                {% if article.status == 'draft' %}
+                                                <a href="{% url 'article_update' article.pk %}" class="btn btn-sm btn-primary">Edit</a>
+                                                <a href="{% url 'submit_article' article.pk %}" class="btn btn-sm btn-success">Submit</a>
+                                                {% endif %}
+                                                {% if article.status == 'revision_required' %}
+                                                <a href="{% url 'article_update' article.pk %}" class="btn btn-sm btn-warning">Revise</a>
+                                                {% endif %}
+                                                <a href="{% url 'article_delete' article.pk %}" class="btn btn-sm btn-danger">Delete</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="article-empty-state">
+                            <i class="material-icons">article</i>
+                            <p>You haven't created any articles yet.</p>
+                            <a href="{% url 'article_create' %}" class="btn btn-primary">
+                                <i class="material-icons me-1" style="font-size: 16px;">add</i>
+                                Create Your First Article
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Pending Approval Tab -->
+                    {% if user.profile.is_editor %}
+                    <div class="tab-pane fade" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+                        {% if pending_articles %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="pendingTable" width="100%" cellspacing="0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Author</th>
+                                        <th>Department</th>
+                                        <th>Submitted</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for article in pending_articles %}
+                                    <tr>
+                                        <td>{{ article.title }}</td>
+                                        <td>{{ article.author.get_full_name|default:article.author.email }}</td>
+                                        <td>{{ article.department.name }}</td>
+                                        <td>{{ article.created_at|naturaltime }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'article_detail' article.pk %}" class="btn btn-sm btn-info">View</a>
+                                                <a href="{% url 'review_article' article.pk %}" class="btn btn-sm btn-primary">Review</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="article-empty-state">
+                            <i class="material-icons">pending_actions</i>
+                            <p>No articles pending approval.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- For Review Tab -->
+                    {% if user.profile.is_reviewer %}
+                    <div class="tab-pane fade" id="review" role="tabpanel" aria-labelledby="review-tab">
+                        {% if review_articles %}
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="reviewTable" width="100%" cellspacing="0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Author</th>
+                                        <th>Department</th>
+                                        <th>Submitted</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for article in review_articles %}
+                                    <tr>
+                                        <td>{{ article.title }}</td>
+                                        <td>{{ article.author.get_full_name|default:article.author.email }}</td>
+                                        <td>{{ article.department.name }}</td>
+                                        <td>{{ article.created_at|naturaltime }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'article_detail' article.pk %}" class="btn btn-sm btn-info">View</a>
+                                                <a href="{% url 'review_article' article.pk %}" class="btn btn-sm btn-primary">Review</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="article-empty-state">
+                            <i class="material-icons">rate_review</i>
+                            <p>No articles assigned for review.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activity -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 fw-bold text-primary">Department Journal Activity</h6>
+            </div>
+            <div class="card-body">
+                {% if user.profile.department %}
+                <div class="list-group list-group-flush">
+                    {% for article in department_recent_articles|slice:":5" %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ article.title }}</h6>
+                                <p class="mb-1 text-muted small">
+                                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">person</i>
+                                    {{ article.author.get_full_name|default:article.author.email }}
+                                    <span class="mx-1">•</span>
+                                    <i class="material-icons" style="font-size: 14px; vertical-align: middle;">
+                                        {% if article.status == 'published' %}check_circle
+                                        {% elif article.status == 'under_review' %}hourglass_empty
+                                        {% elif article.status == 'draft' %}edit
+                                        {% else %}info{% endif %}
+                                    </i>
+                                    {{ article.get_status_display }}
+                                </p>
+                            </div>
+                            <small class="text-muted">{{ article.updated_at|naturaltime }}</small>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No recent activity in your department journal.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if department_recent_articles.count > 5 %}
+                <div class="text-center mt-3">
+                    <a href="{% url 'department_journal' user.profile.department.id %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted mb-0">You are not assigned to any department.</p>
+                    <a href="{% url 'profile' %}" class="btn btn-sm btn-outline-primary mt-2">
+                        Update Profile
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mobile Toggle Button -->
+    <a href="#" class="toggle-sidebar" id="toggleSidebar">
+        <i class="material-icons">menu</i>
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize DataTables
+        $('#articlesTable, #pendingTable, #reviewTable').DataTable({
+            "order": [[3, "desc"]]
+        });
+        
+        // Toggle sidebar on mobile
+        $('#toggleSidebar').click(function(e) {
+            e.preventDefault();
+            $('#sidebar').toggleClass('show');
+        });
+        
+        // Make tab navigation work with URL hash
+        var hash = window.location.hash;
+        if (hash) {
+            $('.nav-tabs a[href="' + hash + '"]').tab('show');
+        }
+        
+        // Change hash for page-reload
+        $('.nav-tabs a').on('shown.bs.tab', function (e) {
+            window.location.hash = e.target.hash;
+        });
+    });
+</script>
+{% endblock %}
+                                        

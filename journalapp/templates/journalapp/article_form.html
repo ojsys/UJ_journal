@@ -1,0 +1,123 @@
+{% extends 'journalapp/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if form.instance.pk %}Edit Article{% else %}Create New Article{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">{% if form.instance.pk %}Edit Article{% else %}Create New Article{% endif %}</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {{ form.title|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {{ form.abstract|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.department|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.category|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {{ form.keywords|as_crispy_field }}
+                                
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {{ form.content|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {{ form.file|as_crispy_field }}
+                                <small class="form-text text-muted">Upload supporting documents or full paper in PDF format.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'article_list' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ form.media }}
+<script>
+    // Add rich text editor to content field if available
+    $(document).ready(function() {
+        if (typeof CKEDITOR !== 'undefined') {
+            // Configure CKEditor for abstract field
+            CKEDITOR.replace('id_abstract', {
+                height: 200,
+                toolbar: [
+                    { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline', 'Strike', 'Subscript', 'Superscript', '-', 'RemoveFormat' ] },
+                    { name: 'paragraph', items: [ 'NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'Blockquote', '-', 'JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyBlock' ] },
+                    { name: 'links', items: [ 'Link', 'Unlink' ] },
+                    { name: 'styles', items: [ 'Format' ] }
+                ]
+            });
+            
+            // Configure CKEditor for content field with more options
+            CKEDITOR.replace('id_content', {
+                height: 400,
+                toolbar: [
+                    { name: 'document', items: [ 'Source' ] },
+                    { name: 'clipboard', items: [ 'Cut', 'Copy', 'Paste', 'PasteText', 'PasteFromWord', '-', 'Undo', 'Redo' ] },
+                    // ... rest of the toolbar configuration
+                ]
+            });
+        }
+    });
+</script>
+<style>
+    /* Improve CKEditor styling to match crispy forms */
+    .django-ckeditor-widget {
+        width: 100%;
+    }
+    
+    /* Add spacing between CKEditor and label */
+    .form-group label + .django-ckeditor-widget {
+        margin-top: 5px;
+    }
+    
+    /* Make CKEditor container match Bootstrap form controls */
+    .cke {
+        border-radius: 0.25rem;
+        border-color: #ced4da;
+    }
+    
+    /* Fix spacing issues */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}

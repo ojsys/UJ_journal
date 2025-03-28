@@ -1,0 +1,318 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Journals{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .filter-card {
+        margin-bottom: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .filter-card .card-header {
+        background-color: #f8f9fa;
+        border-bottom: none;
+        padding: 1rem 1.5rem;
+    }
+    
+    .filter-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .journal-card {
+        transition: all 0.3s ease;
+        height: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .journal-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .journal-card .card-title {
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    
+    .journal-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .journal-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .journal-meta-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .pagination-container {
+        margin-top: 2rem;
+    }
+    
+    .page-item.active .page-link {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+    
+    .page-link {
+        color: var(--primary-color);
+    }
+    
+    .department-filter-btn {
+        margin-bottom: 0.5rem;
+        text-align: left;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+    
+    .department-filter-btn.active {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    .department-filter-btn:hover:not(.active) {
+        background-color: #f8f9fa;
+    }
+    
+    .search-form {
+        position: relative;
+    }
+    
+    .search-form .form-control {
+        padding-left: 2.5rem;
+        border-radius: 50px;
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="display-4">Academic Journals</h1>
+                <p class="lead">Explore published research from University of Jos academics</p>
+                
+                <!-- Search Form -->
+                <div class="mt-4">
+                    <form method="get" action="{% url 'journal_list' %}" class="search-form">
+                        <div class="input-group">
+                            <span class="search-icon">
+                                <i class="material-icons">search</i>
+                            </span>
+                            <input type="text" name="title" class="form-control" placeholder="Search journals..." value="{{ request.GET.title }}">
+                            <button class="btn btn-light" type="submit">Search</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <!-- Filters Sidebar -->
+        <div class="col-lg-3">
+            <div class="card filter-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="material-icons me-2">filter_list</i>
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{% url 'journal_list' %}" id="filter-form">
+                        <!-- Department Filter -->
+                        <div class="mb-4">
+                            <h6 class="mb-3">Departments</h6>
+                            <div class="d-grid">
+                                <a href="{% url 'journal_list' %}" class="btn department-filter-btn {% if not request.GET.department %}active{% endif %}">
+                                    All Departments
+                                </a>
+                                {% for department in departments %}
+                                <a href="{% url 'journal_list' %}?department={{ department.id }}" 
+                                   class="btn department-filter-btn {% if request.GET.department == department.id|stringformat:'i' %}active{% endif %}">
+                                    {{ department.name }}
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Category Filter -->
+                        <div class="mb-4">
+                            <h6 class="mb-3">Categories</h6>
+                            <select name="category" class="form-select" onchange="document.getElementById('filter-form').submit()">
+                                <option value="">All Categories</option>
+                                {% for category in filter.form.category.field.choices %}
+                                {% if category.0 %}
+                                <option value="{{ category.0 }}" {% if request.GET.category == category.0|stringformat:'i' %}selected{% endif %}>
+                                    {{ category.1 }}
+                                </option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Date Range Filter -->
+                        <div class="mb-4">
+                            <h6 class="mb-3">Publication Date</h6>
+                            <div class="mb-3">
+                                <label class="form-label">From</label>
+                                <input type="date" name="published_at_after" class="form-control" value="{{ request.GET.published_at_after }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">To</label>
+                                <input type="date" name="published_at_before" class="form-control" value="{{ request.GET.published_at_before }}">
+                            </div>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="material-icons me-1" style="font-size: 16px;">filter_alt</i> Apply Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Journal List -->
+        <div class="col-lg-9">
+            <!-- Filter Summary -->
+            {% if request.GET %}
+            <div class="alert alert-light d-flex align-items-center mb-4">
+                <i class="material-icons me-2">info</i>
+                <div>
+                    Showing filtered results
+                    {% if selected_department %}
+                    for <strong>{{ selected_department.name }}</strong> department
+                    {% endif %}
+                    <a href="{% url 'journal_list' %}" class="ms-2 btn btn-sm btn-outline-secondary">
+                        <i class="material-icons" style="font-size: 14px;">clear</i> Clear Filters
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Journal Cards -->
+            <div class="row">
+                {% for journal in journals %}
+                <div class="col-md-6 mb-4">
+                    <div class="card journal-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ journal.title }}</h5>
+                            <div class="journal-meta">
+                                <div class="journal-meta-item">
+                                    <i class="material-icons me-1" style="font-size: 16px;">person</i>
+                                    {{ journal.author.get_full_name|default:journal.author.username }}
+                                </div>
+                                <div class="journal-meta-item">
+                                    <i class="material-icons me-1" style="font-size: 16px;">school</i>
+                                    {{ journal.department.name }}
+                                </div>
+                                <div class="journal-meta-item">
+                                    <i class="material-icons me-1" style="font-size: 16px;">calendar_today</i>
+                                    {{ journal.published_at|date:"M d, Y" }}
+                                </div>
+                            </div>
+                            <p class="card-text">{{ journal.abstract|truncatewords:25 }}</p>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0">
+                            <a href="{% url 'journal_detail' journal.pk %}" class="btn btn-primary">
+                                <i class="material-icons me-1" style="font-size: 16px;">visibility</i> Read More
+                            </a>
+                            {% if journal.file %}
+                            <a href="{{ journal.file.url }}" class="btn btn-outline-primary ms-2" download>
+                                <i class="material-icons me-1" style="font-size: 16px;">download</i> Download
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info d-flex align-items-center">
+                        <i class="material-icons me-2">info</i>
+                        No journals found matching your criteria.
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <div class="pagination-container d-flex justify-content-center">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
