@@ -272,7 +272,11 @@
                                 <i class="material-icons me-1" style="font-size: 16px;">library_books</i> Journals
                             </a>
                         </li>
-                        <!-- Add more navigation items here -->
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center"  href="{% url 'article_search' %}">
+                                <i class="material-icons me-1" style="font-size: 16px;">search</i> Search Articles
+                            </a>
+                        </li>
                     </ul>
                     <ul class="navbar-nav">
                         {% if user.is_authenticated %}

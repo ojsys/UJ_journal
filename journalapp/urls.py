@@ -26,14 +26,21 @@ urlpatterns = [
     #Download PDF view
     path('articles/<int:pk>/pdf/', views.article_pdf, name='article_pdf'),
     path('article/<int:pk>/upload-revised/', views.upload_revised_document, name='upload_revised_document'),
-    
+    path('articles/search/', views.ArticleSearchView.as_view(), name='article_search'),
+
     path('management/site-settings/', views.site_settings, name='site_settings'),
     path('management/hero-slides/', views.hero_slides, name='hero_slides'),
     path('management/hero-slides/create/', views.hero_slide_create, name='hero_slide_create'),
     path('management/hero-slides/<int:pk>/update/', views.hero_slide_update, name='hero_slide_update'),
     path('management/hero-slides/<int:pk>/delete/', views.hero_slide_delete, name='hero_slide_delete'),
-
-
+    # Add these URL patterns
+    path('admin/archived-journals/', views.archived_journals_list, name='archived_journals_list'),
+    path('admin/archived-journals/create/', views.archived_journal_create, name='archived_journal_create'),
+    path('admin/archived-journals/<int:pk>/update/', views.archived_journal_update, name='archived_journal_update'),
+    path('admin/archived-journals/<int:pk>/delete/', views.archived_journal_delete, name='archived_journal_delete'),
+    path('archives/', views.public_archived_journals, name='public_archived_journals'),
+    path('archives/<int:pk>/', views.archived_journal_detail, name='archived_journal_detail'),
+    
     # Password reset URLs
     path('password-reset/', 
          auth_views.PasswordResetView.as_view(template_name='journalapp/password_reset.html'), 

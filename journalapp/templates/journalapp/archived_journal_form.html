@@ -1,0 +1,66 @@
+{% extends 'journalapp/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                {{ form.title|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.department|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.volume|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.issue|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.publication_date|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        {{ form.description|as_crispy_field }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.document|as_crispy_field }}
+                                <small class="text-muted">Upload the scanned journal document (PDF format recommended)</small>
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.cover_image|as_crispy_field }}
+                                <small class="text-muted">Upload a cover image for the journal (optional)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 d-flex justify-content-between">
+                            <a href="{% url 'archived_journals_list' %}" class="btn btn-outline-secondary">
+                                <i class="material-icons me-1" style="font-size: 16px;">arrow_back</i> Back to List
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="material-icons me-1" style="font-size: 16px;">save</i> Save Archive
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

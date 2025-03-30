@@ -1,6 +1,6 @@
 {% extends 'journalapp/base.html' %}
 
-{% block title %}Journals{% endblock %}
+{% block title %}Articles{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -27,35 +27,35 @@
         padding: 1.5rem;
     }
     
-    .journal-card {
+    .article-card {
         transition: all 0.3s ease;
         height: 100%;
         border-radius: 8px;
         overflow: hidden;
     }
     
-    .journal-card:hover {
+    .article-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
     
-    .journal-card .card-title {
+    .article-card .card-title {
         font-weight: 600;
         color: var(--primary-color);
     }
     
-    .journal-card .card-body {
+    .article-card .card-body {
         padding: 1.5rem;
     }
     
-    .journal-meta {
+    .article-meta {
         display: flex;
         flex-wrap: wrap;
         gap: 1rem;
         margin-bottom: 1rem;
     }
     
-    .journal-meta-item {
+    .article-meta-item {
         display: flex;
         align-items: center;
         font-size: 0.9rem;
@@ -117,17 +117,17 @@
     <div class="container">
         <div class="row">
             <div class="col-lg-8 mx-auto text-center">
-                <h1 class="display-4">Academic Journals</h1>
+                <h1 class="display-4">Academic Articles</h1>
                 <p class="lead">Explore published research from University of Jos academics</p>
                 
                 <!-- Search Form -->
                 <div class="mt-4">
-                    <form method="get" action="{% url 'journal_list' %}" class="search-form">
+                    <form method="get" action="{% url 'article_list' %}" class="search-form">
                         <div class="input-group">
                             <span class="search-icon">
                                 <i class="material-icons">search</i>
                             </span>
-                            <input type="text" name="title" class="form-control" placeholder="Search journals..." value="{{ request.GET.title }}">
+                            <input type="text" name="q" class="form-control" placeholder="Search articles..." value="{{ request.GET.q }}">
                             <button class="btn btn-light" type="submit">Search</button>
                         </div>
                     </form>
@@ -147,16 +147,22 @@
                     <h5 class="mb-0">Filters</h5>
                 </div>
                 <div class="card-body">
-                    <form method="get" action="{% url 'journal_list' %}" id="filter-form">
+                    <form method="get" action="{% url 'article_list' %}" id="filter-form">
+                        <!-- Keep search query when filtering -->
+                        {% if request.GET.q %}
+                        <input type="hidden" name="q" value="{{ request.GET.q }}">
+                        {% endif %}
+                        
                         <!-- Department Filter -->
                         <div class="mb-4">
                             <h6 class="mb-3">Departments</h6>
                             <div class="d-grid">
-                                <a href="{% url 'journal_list' %}" class="btn department-filter-btn {% if not request.GET.department %}active{% endif %}">
+                                <a href="{% url 'article_list' %}{% if request.GET.q %}?q={{ request.GET.q }}{% endif %}" 
+                                   class="btn department-filter-btn {% if not request.GET.department %}active{% endif %}">
                                     All Departments
                                 </a>
                                 {% for department in departments %}
-                                <a href="{% url 'journal_list' %}?department={{ department.id }}" 
+                                <a href="{% url 'article_list' %}?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}department={{ department.id }}" 
                                    class="btn department-filter-btn {% if request.GET.department == department.id|stringformat:'i' %}active{% endif %}">
                                     {{ department.name }}
                                 </a>
@@ -203,7 +209,7 @@
             </div>
         </div>
         
-        <!-- Journal List -->
+        <!-- Article List -->
         <div class="col-lg-9">
             <!-- Filter Summary -->
             {% if request.GET %}
@@ -211,45 +217,44 @@
                 <i class="material-icons me-2">info</i>
                 <div>
                     Showing filtered results
-                    {% if selected_department %}
-                    for <strong>{{ selected_department.name }}</strong> department
-                    {% endif %}
-                    <a href="{% url 'journal_list' %}" class="ms-2 btn btn-sm btn-outline-secondary">
+                    {% if request.GET.q %} for "<strong>{{ request.GET.q }}</strong>"{% endif %}
+                    {% if selected_department %} in <strong>{{ selected_department.name }}</strong> department{% endif %}
+                    <a href="{% url 'article_list' %}" class="ms-2 btn btn-sm btn-outline-secondary">
                         <i class="material-icons" style="font-size: 14px;">clear</i> Clear Filters
                     </a>
                 </div>
             </div>
             {% endif %}
             
-            <!-- Journal Cards -->
+            <!-- Article Cards -->
             <div class="row">
-                {% for journal in journals %}
+                {% for article in articles %}
                 <div class="col-md-6 mb-4">
-                    <div class="card journal-card h-100">
+                    <div class="card article-card h-100">
                         <div class="card-body">
-                            <h5 class="card-title">{{ journal.title }}</h5>
-                            <div class="journal-meta">
-                                <div class="journal-meta-item">
+                            <h5 class="card-title">{{ article.title }}</h5>
+                            <div class="article-meta">
+                                <div class="article-meta-item">
                                     <i class="material-icons me-1" style="font-size: 16px;">person</i>
-                                    {{ journal.author.get_full_name|default:journal.author.username }}
+                                    {{ article.author.get_full_name|default:article.author.first_name }}
                                 </div>
-                                <div class="journal-meta-item">
+                                <div class="article-meta-item">
                                     <i class="material-icons me-1" style="font-size: 16px;">school</i>
-                                    {{ journal.department.name }}
+                                    {{ article.department.name }}
                                 </div>
-                                <div class="journal-meta-item">
+                                <div class="article-meta-item">
                                     <i class="material-icons me-1" style="font-size: 16px;">calendar_today</i>
-                                    {{ journal.published_at|date:"M d, Y" }}
+                                    {{ article.published_at|date:"M d, Y" }}
                                 </div>
                             </div>
-                            <p class="card-text">{{ journal.abstract|truncatewords:25 }}</p>
+                            <p class="card-text">{{ article.abstract|truncatewords:25 }}</p>
                         </div>
                         <div class="card-footer bg-transparent border-top-0">
-                            <a href="{% url 'journal_detail' journal.pk %}" class="btn btn-primary">
+                            <a href="{% url 'article_detail' article.pk %}" class="btn btn-primary">
                                 <i class="material-icons me-1" style="font-size: 16px;">visibility</i> Read More
                             </a>
-                            {% if journal.file %}
-                            <a href="{{ journal.file.url }}" class="btn btn-outline-primary ms-2" download>
+                            {% if article.document %}
+                            <a href="{{ article.document.url }}" class="btn btn-outline-primary ms-2" download>
                                 <i class="material-icons me-1" style="font-size: 16px;">download</i> Download
                             </a>
                             {% endif %}
@@ -260,7 +265,7 @@
                 <div class="col-12">
                     <div class="alert alert-info d-flex align-items-center">
                         <i class="material-icons me-2">info</i>
-                        No journals found matching your criteria.
+                        No articles found matching your criteria.
                     </div>
                 </div>
                 {% endfor %}

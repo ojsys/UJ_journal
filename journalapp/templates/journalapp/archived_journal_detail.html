@@ -1,0 +1,217 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}{{ archived_journal.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .journal-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .journal-cover {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        height: 300px;
+    }
+    
+    .journal-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .journal-meta {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .journal-meta-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .journal-meta-item i {
+        color: var(--primary-color);
+        margin-right: 0.5rem;
+    }
+    
+    .journal-meta-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .download-btn {
+        margin-top: 1.5rem;
+        padding: 0.75rem 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="journal-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}" class="text-white">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'public_archived_journals' %}" class="text-white">Archives</a></li>
+                        <li class="breadcrumb-item active text-white-50" aria-current="page">{{ archived_journal.title }}</li>
+                    </ol>
+                </nav>
+                <h1 class="display-5">{{ archived_journal.title }}</h1>
+                <p class="lead">
+                    <span class="badge bg-light text-primary me-2">Vol. {{ archived_journal.volume|default:"N/A" }}</span>
+                    <span class="badge bg-light text-primary me-2">Issue {{ archived_journal.issue|default:"N/A" }}</span>
+                    <span class="badge bg-light text-primary">{{ archived_journal.publication_date|date:"F Y" }}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="journal-cover mb-4">
+                {% if archived_journal.cover_image %}
+                <img src="{{ archived_journal.cover_image.url }}" alt="{{ archived_journal.title }}">
+                {% else %}
+                <div class="bg-light d-flex flex-column align-items-center justify-content-center h-100">
+                    <i class="material-icons" style="font-size: 64px; color: #adb5bd;">description</i>
+                    <p class="mt-2 mb-0 text-muted">No Cover Available</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="journal-meta">
+                <h5 class="mb-3">Journal Information</h5>
+                <div class="journal-meta-item">
+                    <i class="material-icons">school</i>
+                    <div>
+                        <strong>Department</strong>
+                        <div>{{ archived_journal.department.name }}</div>
+                    </div>
+                </div>
+                <div class="journal-meta-item">
+                    <i class="material-icons">collections_bookmark</i>
+                    <div>
+                        <strong>Volume/Issue</strong>
+                        <div>Vol. {{ archived_journal.volume|default:"N/A" }}, Issue {{ archived_journal.issue|default:"N/A" }}</div>
+                    </div>
+                </div>
+                <div class="journal-meta-item">
+                    <i class="material-icons">calendar_today</i>
+                    <div>
+                        <strong>Publication Date</strong>
+                        <div>{{ archived_journal.publication_date|date:"F j, Y" }}</div>
+                    </div>
+                </div>
+                <div class="journal-meta-item">
+                    <i class="material-icons">person</i>
+                    <div>
+                        <strong>Uploaded By</strong>
+                        <div>{{ archived_journal.uploaded_by.get_full_name|default:archived_journal.uploaded_by.username }}</div>
+                    </div>
+                </div>
+                
+                <a href="{{ archived_journal.document.url }}" class="btn btn-primary btn-lg w-100 download-btn" download>
+                    <i class="material-icons me-2">download</i> Download Journal
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h4 class="card-title mb-4">About This Journal</h4>
+                    {% if archived_journal.description %}
+                    <p>{{ archived_journal.description|linebreaks }}</p>
+                    {% else %}
+                    <p class="text-muted">No description available for this archived journal.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if user.is_staff %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Admin Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'archived_journal_update' archived_journal.pk %}" class="btn btn-outline-primary">
+                            <i class="material-icons me-1" style="font-size: 16px;">edit</i> Edit
+                        </a>
+                        <a href="{% url 'archived_journal_delete' archived_journal.pk %}" class="btn btn-outline-danger">
+                            <i class="material-icons me-1" style="font-size: 16px;">delete</i> Delete
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- PDF Preview if possible -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Document Preview</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if archived_journal.document.url|lower|endswith:'.pdf' %}
+                    <div class="ratio ratio-16x9" style="min-height: 500px;">
+                        <iframe src="{{ archived_journal.document.url }}" allowfullscreen></iframe>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="material-icons" style="font-size: 64px; color: #adb5bd;">description</i>
+                        <p class="mt-3 mb-0">Preview not available for this document format.</p>
+                        <p class="text-muted">Please download the document to view its contents.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Archives -->
+    {% with related_archives=archived_journal.department.archived_journals.all|slice:":3" %}
+    {% if related_archives %}
+    <div class="mt-5">
+        <h3 class="mb-4">More Archives from {{ archived_journal.department.name }}</h3>
+        <div class="row">
+            {% for archive in related_archives %}
+            {% if archive.id != archived_journal.id %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ archive.title }}</h5>
+                        <p class="card-text">
+                            <span class="badge bg-secondary me-1">Vol. {{ archive.volume|default:"N/A" }}</span>
+                            <span class="badge bg-secondary">Issue {{ archive.issue|default:"N/A" }}</span>
+                        </p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="material-icons me-1" style="font-size: 14px;">calendar_today</i>
+                                {{ archive.publication_date|date:"M Y" }}
+                            </small>
+                        </p>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="{% url 'archived_journal_detail' archive.pk %}" class="btn btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+</div>
+{% endblock %}

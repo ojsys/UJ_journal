@@ -290,6 +290,59 @@
         </div>
     </div>
     
+    
+    <!-- Featured Archives Section -->
+    {% if featured_archives %}
+    <div class="mb-5">
+        <h2 class="section-heading">Featured Archives</h2>
+        <div class="row">
+            {% for archive in featured_archives %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="material-icons text-primary me-2">collections_bookmark</i>
+                            <h5 class="card-title mb-0">{{ archive.title }}</h5>
+                        </div>
+                        <h6 class="card-subtitle mb-3 text-muted d-flex align-items-center">
+                            <i class="material-icons me-1" style="font-size: 16px;">school</i>
+                            {{ archive.department.name }}
+                        </h6>
+                        <div class="mb-3">
+                            <span class="badge bg-secondary me-1">Vol. {{ archive.volume|default:"N/A" }}</span>
+                            <span class="badge bg-secondary">Issue {{ archive.issue|default:"N/A" }}</span>
+                            <span class="badge bg-primary ms-1">{{ archive.publication_date|date:"Y" }}</span>
+                        </div>
+                        {% if archive.description %}
+                        <p class="card-text">{{ archive.description|truncatewords:20 }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">{{ archive.publication_date|date:"M d, Y" }}</small>
+                            <div>
+                                <a href="{% url 'archived_journal_detail' archive.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="material-icons me-1" style="font-size: 14px;">visibility</i> View
+                                </a>
+                                <a href="{{ archive.document.url }}" class="btn btn-sm btn-primary" download>
+                                    <i class="material-icons me-1" style="font-size: 14px;">download</i> Download
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-4">
+            <a href="{% url 'public_archived_journals' %}" class="btn btn-outline-primary">
+                <i class="material-icons me-1" style="font-size: 16px;">collections_bookmark</i>
+                Browse All Archives
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Call to Action Section -->
     <div class="cta-section text-center">
         <div class="row">

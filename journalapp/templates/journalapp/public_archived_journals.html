@@ -1,0 +1,204 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Journal Archives{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .archive-card {
+        transition: all 0.3s ease;
+        height: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .archive-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .archive-cover {
+        height: 200px;
+        background-color: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    
+    .archive-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .archive-info {
+        padding: 1.5rem;
+    }
+    
+    .archive-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .archive-meta-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .department-filter-btn {
+        margin-bottom: 0.5rem;
+        text-align: left;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+    
+    .department-filter-btn.active {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    .department-filter-btn:hover:not(.active) {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h1 class="display-4">Journal Archives</h1>
+                <p class="lead">Access historical journal publications from University of Jos</p>
+                
+                <!-- Search Form -->
+                <div class="mt-4">
+                    <form method="get" action="{% url 'public_archived_journals' %}" class="search-form">
+                        <div class="input-group">
+                            <span class="search-icon">
+                                <i class="material-icons">search</i>
+                            </span>
+                            <input type="text" name="q" class="form-control" placeholder="Search archives..." value="{{ search_query }}">
+                            <button class="btn btn-light" type="submit">Search</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <!-- Filters Sidebar -->
+        <div class="col-lg-3">
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <i class="material-icons me-2">filter_list</i>
+                    <h5 class="mb-0">Departments</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid">
+                        <a href="{% url 'public_archived_journals' %}{% if search_query %}?q={{ search_query }}{% endif %}" 
+                           class="btn department-filter-btn {% if not selected_department %}active{% endif %}">
+                            All Departments
+                        </a>
+                        {% for department in departments %}
+                        <a href="{% url 'public_archived_journals' %}?{% if search_query %}q={{ search_query }}&{% endif %}department={{ department.id }}" 
+                           class="btn department-filter-btn {% if selected_department.id == department.id %}active{% endif %}">
+                            {{ department.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Archives List -->
+        <div class="col-lg-9">
+            <!-- Filter Summary -->
+            {% if search_query or selected_department %}
+            <div class="alert alert-light d-flex align-items-center mb-4">
+                <i class="material-icons me-2">info</i>
+                <div>
+                    Showing filtered results
+                    {% if search_query %} for "<strong>{{ search_query }}</strong>"{% endif %}
+                    {% if selected_department %} in <strong>{{ selected_department.name }}</strong> department{% endif %}
+                    <a href="{% url 'public_archived_journals' %}" class="ms-2 btn btn-sm btn-outline-secondary">
+                        <i class="material-icons" style="font-size: 14px;">clear</i> Clear Filters
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Archives Grid -->
+            <div class="row">
+                {% for archive in archives %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card archive-card h-100">
+                        <div class="archive-cover">
+                            {% if archive.cover_image %}
+                            <img src="{{ archive.cover_image.url }}" alt="{{ archive.title }}">
+                            {% else %}
+                            <div class="text-center">
+                                <i class="material-icons" style="font-size: 64px; color: #adb5bd;">description</i>
+                                <p class="mt-2 mb-0">No Cover</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="archive-info">
+                            <h5 class="card-title">{{ archive.title }}</h5>
+                            <div class="archive-meta">
+                                <div class="archive-meta-item">
+                                    <i class="material-icons me-1" style="font-size: 16px;">school</i>
+                                    {{ archive.department.name }}
+                                </div>
+                                <div class="archive-meta-item">
+                                    <i class="material-icons me-1" style="font-size: 16px;">calendar_today</i>
+                                    {{ archive.publication_date|date:"M Y" }}
+                                </div>
+                            </div>
+                            <p class="card-text">
+                                <span class="badge bg-secondary me-1">Vol. {{ archive.volume|default:"N/A" }}</span>
+                                <span class="badge bg-secondary">Issue {{ archive.issue|default:"N/A" }}</span>
+                            </p>
+                            {% if archive.description %}
+                            <p class="card-text small text-muted">{{ archive.description|truncatewords:15 }}</p>
+                            {% endif %}
+                            <div class="mt-3">
+                                <a href="{{ archive.document.url }}" class="btn btn-primary" download>
+                                    <i class="material-icons me-1" style="font-size: 16px;">download</i> Download
+                                </a>
+                                <a href="{% url 'archived_journal_detail' archive.pk %}" class="btn btn-outline-secondary ms-2">
+                                    <i class="material-icons me-1" style="font-size: 16px;">info</i> Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info d-flex align-items-center">
+                        <i class="material-icons me-2">info</i>
+                        No archived journals found matching your criteria.
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

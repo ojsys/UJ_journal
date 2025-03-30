@@ -14,7 +14,7 @@ from django.utils.html import strip_tags
 from django.contrib.sites.shortcuts import get_current_site
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
-from .models import Article, Department, Profile, ArticleCategory, Review, SiteSettings, HeroSlide
+from .models import Article, Department, Profile, ArticleCategory, Review, SiteSettings, HeroSlide, ArchivedJournal
 from .forms import (UserRegisterForm, ProfileUpdateForm, UserUpdateForm, 
                    ArticleForm, ReviewForm, CommentForm, DepartmentForm, SiteSettingsForm, HeroSlideForm)
 from django_filters.views import FilterView
@@ -26,11 +26,15 @@ def home(request):
     latest_articles = Article.objects.filter(status='published').order_by('-published_at')[:5]
     hero_slides = HeroSlide.objects.filter(is_active=True).order_by('order')
     
+    # Get featured archives
+    featured_archives = ArchivedJournal.objects.filter(featured=True).order_by('-publication_date')[:3]
+    
     context = {
         'departments': departments,
         'latest_articles': latest_articles,
         'hero_slides': hero_slides,
     }
+    
     return render(request, 'journalapp/home.html', context)
 
 
@@ -193,13 +197,48 @@ def upload_revised_document(request, pk):
             article.save()
             
             # Notify the author
-            # (You can add email notification code here)
+            send_revision_notification(request, article)
             
             messages.success(request, 'Revised document uploaded successfully.')
         else:
             messages.error(request, 'No document was uploaded.')
     
     return redirect('dashboard')
+
+
+def send_revision_notification(request, article):
+    current_site = get_current_site(request)
+    site_url = f"{'https' if request.is_secure() else 'http'}://{current_site.domain}"
+    dashboard_url = f"{site_url}/dashboard/"
+    
+    context = {
+        'article': article,
+        'user': article.author,
+        'site_url': site_url,
+        'dashboard_url': dashboard_url,
+        'revision_notes': article.revision_notes,
+    }
+    
+    # Render email templates
+    html_content = render_to_string('journalapp/emails/revision_notification.html', context)
+    text_content = strip_tags(html_content)
+    
+    # Create email
+    subject = f"Revision Required: {article.title}"
+    from_email = "University Journal <noreply@universityjournal.com>"
+    to_email = article.author.email
+    
+    # Send email
+    email = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+    email.attach_alternative(html_content, "text/html")
+    
+    try:
+        email.send()
+        print(f"Revision notification email sent to {to_email}")
+    except Exception as e:
+        print(f"Error sending revision notification email: {e}")
+
+
 
 
 def department_journal(request, department_id):
@@ -306,9 +345,13 @@ def review_article(request, pk):
                 article.status = 'accepted'
             elif decision in ['minor_revision', 'major_revision']:
                 article.status = 'revision_required'
+                # Store revision notes from the review
+                article.revision_notes = review.comments
+                # Send notification to the author
+                send_revision_notification(request, article)
             elif decision == 'reject':
                 article.status = 'rejected'
-            article.save()  # Fixed: Changed from journal.save() to article.save()
+            article.save()
             
             messages.success(request, 'Review submitted successfully!')
             return redirect('dashboard')
@@ -320,6 +363,8 @@ def review_article(request, pk):
         'article': article
     }
     return render(request, 'journalapp/review_form.html', context)
+
+    
 
 @login_required
 def publish_article(request, pk):
@@ -496,3 +541,181 @@ def article_pdf(request, pk):
         return response
     
     return HttpResponse("Error generating PDF", status=400)
+
+class ArticleSearchView(ListView):
+    model = Article
+    template_name = 'journalapp/article_search.html'
+    context_object_name = 'articles'
+    paginate_by = 10
+    
+    def get_queryset(self):
+        queryset = Article.objects.filter(status='published')
+        
+        # Search functionality
+        search_query = self.request.GET.get('q', '')
+        if search_query:
+            queryset = queryset.filter(
+                models.Q(title__icontains=search_query) |
+                models.Q(abstract__icontains=search_query) |
+                models.Q(content__icontains=search_query) |
+                models.Q(author__first_name__icontains=search_query) |
+                models.Q(author__last_name__icontains=search_query) |
+                models.Q(keywords__icontains=search_query)
+            )
+        
+        # Filter by department
+        department_id = self.request.GET.get('department')
+        if department_id:
+            queryset = queryset.filter(department_id=department_id)
+            
+        # Filter by category
+        category_id = self.request.GET.get('category')
+        if category_id:
+            queryset = queryset.filter(categories__id=category_id)
+        
+        # Sorting
+        sort_by = self.request.GET.get('sort', 'newest')
+        if sort_by == 'newest':
+            queryset = queryset.order_by('-published_at')
+        elif sort_by == 'oldest':
+            queryset = queryset.order_by('published_at')
+        elif sort_by == 'title':
+            queryset = queryset.order_by('title')
+        elif sort_by == 'author':
+            queryset = queryset.order_by('author__last_name', 'author__first_name')
+        else:
+            queryset = queryset.order_by('-published_at')
+        
+        return queryset.distinct()
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['departments'] = Department.objects.all()
+        context['categories'] = ArticleCategory.objects.all()
+        context['search_query'] = self.request.GET.get('q', '')
+        context['selected_department'] = self.request.GET.get('department', '')
+        context['selected_category'] = self.request.GET.get('category', '')
+        context['selected_sort'] = self.request.GET.get('sort', 'newest')
+        return context
+
+# Add these views for archived journals
+
+@staff_member_required
+def archived_journals_list(request):
+    archives = ArchivedJournal.objects.all().order_by('-publication_date')
+    
+    # Filter by department
+    department_id = request.GET.get('department')
+    if department_id:
+        archives = archives.filter(department_id=department_id)
+    
+    # Search functionality
+    search_query = request.GET.get('q')
+    if search_query:
+        archives = archives.filter(
+            models.Q(title__icontains=search_query) |
+            models.Q(description__icontains=search_query) |
+            models.Q(volume__icontains=search_query) |
+            models.Q(issue__icontains=search_query)
+        )
+    
+    context = {
+        'archives': archives,
+        'departments': Department.objects.all(),
+        'title': 'Archived Journals',
+        'search_query': search_query,
+        'selected_department': department_id,
+    }
+    return render(request, 'journalapp/archived_journals_list.html', context)
+
+@staff_member_required
+def archived_journal_create(request):
+    if request.method == 'POST':
+        form = ArchivedJournalForm(request.POST, request.FILES)
+        if form.is_valid():
+            archived_journal = form.save(commit=False)
+            archived_journal.uploaded_by = request.user
+            archived_journal.save()
+            messages.success(request, 'Archived journal uploaded successfully!')
+            return redirect('archived_journals_list')
+    else:
+        form = ArchivedJournalForm()
+    
+    context = {
+        'form': form,
+        'title': 'Upload Archived Journal'
+    }
+    return render(request, 'journalapp/archived_journal_form.html', context)
+
+@staff_member_required
+def archived_journal_update(request, pk):
+    archived_journal = get_object_or_404(ArchivedJournal, pk=pk)
+    
+    if request.method == 'POST':
+        form = ArchivedJournalForm(request.POST, request.FILES, instance=archived_journal)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Archived journal updated successfully!')
+            return redirect('archived_journals_list')
+    else:
+        form = ArchivedJournalForm(instance=archived_journal)
+    
+    context = {
+        'form': form,
+        'archived_journal': archived_journal,
+        'title': 'Update Archived Journal'
+    }
+    return render(request, 'journalapp/archived_journal_form.html', context)
+
+@staff_member_required
+def archived_journal_delete(request, pk):
+    archived_journal = get_object_or_404(ArchivedJournal, pk=pk)
+    
+    if request.method == 'POST':
+        archived_journal.delete()
+        messages.success(request, 'Archived journal deleted successfully!')
+        return redirect('archived_journals_list')
+    
+    context = {
+        'archived_journal': archived_journal,
+        'title': 'Delete Archived Journal'
+    }
+    return render(request, 'journalapp/archived_journal_confirm_delete.html', context)
+
+# Public view for archived journals
+def public_archived_journals(request):
+    archives = ArchivedJournal.objects.all().order_by('-publication_date')
+    
+    # Filter by department
+    department_id = request.GET.get('department')
+    if department_id:
+        archives = archives.filter(department_id=department_id)
+        selected_department = Department.objects.get(id=department_id)
+    else:
+        selected_department = None
+    
+    # Search functionality
+    search_query = request.GET.get('q')
+    if search_query:
+        archives = archives.filter(
+            models.Q(title__icontains=search_query) |
+            models.Q(description__icontains=search_query) |
+            models.Q(volume__icontains=search_query) |
+            models.Q(issue__icontains=search_query)
+        )
+    
+    context = {
+        'archives': archives,
+        'departments': Department.objects.all(),
+        'search_query': search_query,
+        'selected_department': selected_department,
+    }
+    return render(request, 'journalapp/public_archived_journals.html', context)
+
+def archived_journal_detail(request, pk):
+    archived_journal = get_object_or_404(ArchivedJournal, pk=pk)
+    
+    context = {
+        'archived_journal': archived_journal,
+    }
+    return render(request, 'journalapp/archived_journal_detail.html', context)

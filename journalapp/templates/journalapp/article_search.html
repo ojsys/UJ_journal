@@ -1,0 +1,162 @@
+{% extends 'journalapp/base.html' %}
+{% load static %}
+
+{% block title %}Search Articles{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="mb-4">Search Articles</h1>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Search and Filters -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Search & Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{% url 'article_search' %}">
+                        <div class="mb-3">
+                            <label for="searchQuery" class="form-label">Search</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="searchQuery" name="q" 
+                                       placeholder="Search by title, author, keywords..." value="{{ search_query }}">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="material-icons" style="font-size: 16px;">search</i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="departmentFilter" class="form-label">Department</label>
+                            <select class="form-select" id="departmentFilter" name="department">
+                                <option value="">All Departments</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" {% if selected_department == department.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ department.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="categoryFilter" class="form-label">Category</label>
+                            <select class="form-select" id="categoryFilter" name="category">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="sortBy" class="form-label">Sort By</label>
+                            <select class="form-select" id="sortBy" name="sort">
+                                <option value="newest" {% if selected_sort == 'newest' %}selected{% endif %}>Newest First</option>
+                                <option value="oldest" {% if selected_sort == 'oldest' %}selected{% endif %}>Oldest First</option>
+                                <option value="title" {% if selected_sort == 'title' %}selected{% endif %}>Title (A-Z)</option>
+                                <option value="author" {% if selected_sort == 'author' %}selected{% endif %}>Author</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Search Results -->
+        <div class="col-md-8">
+            {% if search_query %}
+            <div class="alert alert-info mb-4">
+                <i class="material-icons" style="font-size: 16px; vertical-align: middle;">info</i>
+                Showing results for: <strong>{{ search_query }}</strong>
+                {% if articles.count == 0 %}
+                <p class="mb-0 mt-2">No articles found matching your search criteria.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if articles %}
+            <div class="row">
+                {% for article in articles %}
+                <div class="col-md-12 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="{% url 'article_detail' article.pk %}" class="text-decoration-none">
+                                    {{ article.title }}
+                                </a>
+                            </h5>
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                By {{ article.author.get_full_name|default:article.author.first_name }} | 
+                                {{ article.published_at|date:"F j, Y" }}
+                            </h6>
+                            <div class="mb-2">
+                                <span class="badge bg-primary">{{ article.department.name }}</span>
+                                {% for category in article.categories.all %}
+                                <span class="badge bg-secondary">{{ category.name }}</span>
+                                {% endfor %}
+                            </div>
+                            <p class="card-text">{{ article.abstract|truncatewords:30|safe }}</p>
+                            <a href="{% url 'article_detail' article.pk %}" class="btn btn-sm btn-outline-primary">
+                                Read More
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ search_query }}&department={{ selected_department }}&category={{ selected_category }}&sort={{ selected_sort }}&page=1">First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ search_query }}&department={{ selected_department }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ search_query }}&department={{ selected_department }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ search_query }}&department={{ selected_department }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ page_obj.next_page_number }}">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?q={{ search_query }}&department={{ selected_department }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="material-icons" style="font-size: 4rem; color: #dee2e6;">search</i>
+                <p class="mt-3 text-muted">Use the search and filters to find articles.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

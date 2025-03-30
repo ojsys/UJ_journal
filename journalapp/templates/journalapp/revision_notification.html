@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Revision Required for Your Article</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .header {
+            background-color: #4a6fdc;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4a6fdc;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        .revision-notes {
+            background-color: #fff;
+            border-left: 4px solid #4a6fdc;
+            padding: 10px 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Revision Required</h1>
+    </div>
+    <div class="content">
+        <p>Dear {{ user.first_name|default:user.username }},</p>
+        
+        <p>Your article <strong>"{{ article.title }}"</strong> requires revision before it can proceed in the publication process.</p>
+        
+        {% if revision_notes %}
+        <div class="revision-notes">
+            <h3>Revision Notes:</h3>
+            <p>{{ revision_notes|linebreaks }}</p>
+        </div>
+        {% endif %}
+        
+        <p>Please log in to your dashboard to download the revised document with comments and make the necessary changes.</p>
+        
+        <p>
+            <a href="{{ dashboard_url }}" class="button">Go to Dashboard</a>
+        </p>
+        
+        <p>If you have any questions about the required revisions, please contact the editorial team.</p>
+        
+        <p>Thank you for your contribution to University Journal.</p>
+        
+        <p>Best regards,<br>
+        The University Journal Editorial Team</p>
+    </div>
+    <div class="footer">
+        <p>This is an automated message from University Journal. Please do not reply to this email.</p>
+        <p>&copy; {% now "Y" %} University Journal. All rights reserved.</p>
+    </div>
+</body>
+</html>

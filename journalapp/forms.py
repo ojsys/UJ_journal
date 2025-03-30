@@ -3,7 +3,7 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from ckeditor.widgets import CKEditorWidget
-from .models import Profile, Article, Review, Comment, Department, SiteSettings, HeroSlide, ArticleCategory
+from .models import Profile, Article, Review, Comment, Department, SiteSettings, HeroSlide, ArticleCategory, ArchivedJournal
 
 User = get_user_model()
 
@@ -162,4 +162,15 @@ class DepartmentForm(forms.ModelForm):
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
             'journal_description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+# Add this form for archived journals
+class ArchivedJournalForm(forms.ModelForm):
+    class Meta:
+        model = ArchivedJournal
+        fields = ['title', 'description', 'department', 'volume', 'issue', 
+                  'publication_date', 'document', 'cover_image']
+        widgets = {
+            'publication_date': forms.DateInput(attrs={'type': 'date'}),
+            'description': forms.Textarea(attrs={'rows': 4}),
         }

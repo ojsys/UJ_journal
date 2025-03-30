@@ -67,3 +67,28 @@ class HeroSlideAdmin(admin.ModelAdmin):
     list_display = ('title', 'order', 'is_active')
     list_editable = ('order', 'is_active')
     list_filter = ('is_active',)
+
+
+# Add the ArchivedJournal to the imports
+from .models import (
+    Profile, Article, Review, Comment, Department, 
+    SiteSettings, HeroSlide, ArticleCategory, ArchivedJournal
+)
+
+@admin.register(ArchivedJournal)
+class ArchivedJournalAdmin(admin.ModelAdmin):
+    list_display = ('title', 'department', 'volume', 'issue', 'publication_date', 'featured', 'uploaded_by', 'uploaded_at')
+    list_filter = ('department', 'publication_date', 'featured')
+    list_editable = ('featured',)
+    search_fields = ('title', 'description', 'volume', 'issue')
+    date_hierarchy = 'publication_date'
+    readonly_fields = ('uploaded_at', 'uploaded_by')
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('department', 'uploaded_by')
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Only set uploaded_by when creating a new object
+            obj.uploaded_by = request.user
+        super().save_model(request, obj, form, change)
