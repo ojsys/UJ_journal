@@ -195,6 +195,8 @@ class Article(models.Model):
     keywords = models.CharField(max_length=255, blank=True, help_text="Enter keywords separated by commas")
     file = models.FileField(upload_to='journal_files', blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    revised_document = models.FileField(upload_to='revised_documents/', null=True, blank=True)
+    revision_notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_at = models.DateTimeField(null=True, blank=True)

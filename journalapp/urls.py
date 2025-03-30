@@ -25,6 +25,7 @@ urlpatterns = [
     path('articles/<int:pk>/publish/', views.publish_article, name='publish_article'),
     #Download PDF view
     path('articles/<int:pk>/pdf/', views.article_pdf, name='article_pdf'),
+    path('article/<int:pk>/upload-revised/', views.upload_revised_document, name='upload_revised_document'),
     
     path('management/site-settings/', views.site_settings, name='site_settings'),
     path('management/hero-slides/', views.hero_slides, name='hero_slides'),

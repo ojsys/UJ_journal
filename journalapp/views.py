@@ -143,7 +143,14 @@ def profile(request):
 
 @login_required
 def dashboard(request):
+    # Get all user articles
     user_articles = Article.objects.filter(author=request.user).order_by('-created_at')
+    
+    # Count articles by status
+    published_count = user_articles.filter(status='published').count()
+    under_review_count = user_articles.filter(status__in=['submitted', 'under_review']).count()
+    draft_count = user_articles.filter(status='draft').count()
+    revision_required_count = user_articles.filter(status='revision_required').count()
     
     # For editors and reviewers
     if request.user.profile.is_editor:
@@ -160,8 +167,39 @@ def dashboard(request):
         'user_articles': user_articles,
         'pending_articles': pending_articles,
         'review_articles': review_articles,
+        'published_count': published_count,
+        'under_review_count': under_review_count,
+        'draft_count': draft_count,
+        'revision_required_count': revision_required_count,
+        'total_count': len(user_articles),
     }
     return render(request, 'journalapp/dashboard.html', context)
+
+
+@login_required
+def upload_revised_document(request, pk):
+    article = get_object_or_404(Article, pk=pk)
+    
+    # Check if user is editor or admin
+    if not request.user.profile.is_editor and not request.user.is_staff:
+        messages.error(request, 'You do not have permission to upload revised documents.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        if 'revised_document' in request.FILES:
+            article.revised_document = request.FILES['revised_document']
+            article.revision_notes = request.POST.get('revision_notes', '')
+            article.status = 'revision_required'  # Update status
+            article.save()
+            
+            # Notify the author
+            # (You can add email notification code here)
+            
+            messages.success(request, 'Revised document uploaded successfully.')
+        else:
+            messages.error(request, 'No document was uploaded.')
+    
+    return redirect('dashboard')
 
 
 def department_journal(request, department_id):
@@ -270,7 +308,7 @@ def review_article(request, pk):
                 article.status = 'revision_required'
             elif decision == 'reject':
                 article.status = 'rejected'
-            journal.save()
+            article.save()  # Fixed: Changed from journal.save() to article.save()
             
             messages.success(request, 'Review submitted successfully!')
             return redirect('dashboard')
