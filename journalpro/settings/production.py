@@ -5,8 +5,14 @@ These settings are for production deployment.
 Make sure to set all required environment variables!
 """
 
+import os
+
 from .base import *
 from decouple import config, Csv
+
+# Ensure the log directory exists so file logging never fails on a fresh deploy.
+LOGS_DIR = BASE_DIR / 'logs'
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
@@ -93,27 +99,66 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'format': '{levelname} {asctime} {name} {module}:{lineno:d} pid:{process:d} {message}',
             'style': '{',
         },
     },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+    },
     'handlers': {
-        'file': {
+        # Rotating error log: 5 MB per file, keep 5 backups (~30 MB cap total).
+        'error_file': {
             'level': 'ERROR',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django_error.log',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'django_error.log',
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 5,
+            'encoding': 'utf-8',
             'formatter': 'verbose',
         },
+        # Separate rotating log for warnings (kept out of the error file for clarity).
+        'warning_file': {
+            'level': 'WARNING',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'django_warning.log',
+            'maxBytes': 2 * 1024 * 1024,
+            'backupCount': 3,
+            'encoding': 'utf-8',
+            'formatter': 'verbose',
+        },
+        # Emails admins on 500s — only when DEBUG is off and email/ADMINS are set.
         'mail_admins': {
             'level': 'ERROR',
             'class': 'django.utils.log.AdminEmailHandler',
+            'filters': ['require_debug_false'],
+            'include_html': True,
         },
+    },
+    # Catch-all: any ERROR (incl. third-party libs) lands in the error file.
+    'root': {
+        'handlers': ['error_file'],
+        'level': 'ERROR',
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'mail_admins'],
+            'handlers': ['error_file', 'warning_file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        # Unhandled 500s are logged here with a full traceback.
+        'django.request': {
+            'handlers': ['error_file', 'mail_admins'],
             'level': 'ERROR',
-            'propagate': True,
+            'propagate': False,
+        },
+        # This project's own log calls: logging.getLogger('journalapp').
+        'journalapp': {
+            'handlers': ['error_file', 'warning_file', 'mail_admins'],
+            'level': 'WARNING',
+            'propagate': False,
         },
     },
 }
