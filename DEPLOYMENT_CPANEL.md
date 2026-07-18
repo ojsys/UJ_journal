@@ -238,19 +238,19 @@ mkdir -p logs media                        # logging + uploads dirs
 ## 8. Media (user uploads)
 
 Uploads go to `MEDIA_ROOT = <app>/media/` and are served at `/media/`. WhiteNoise
-does **not** serve media, so expose it via the web root:
+does **not** serve media, and Django's default media helper only works when
+`DEBUG=True` — so `journalpro/urls.py` routes `/media/` through Django in **all**
+environments (already committed). No symlink or Apache config is required.
 
-1. Ensure the `media/` folder exists and is writable (`chmod 755 media`).
-2. Create a symlink from the domain's document root to the media folder, e.g.:
+You only need to make sure the folder exists and is writable:
 
-   ```bash
-   ln -s /home/cpuser/unijos_journal/media /home/cpuser/public_html/media
-   ```
+```bash
+mkdir -p media && chmod 755 media
+```
 
-   (Adjust `public_html` to the correct docroot for your domain/subdomain.)
-
-   *Alternative:* add a media route in `journalpro/urls.py` guarded by settings, or
-   move media to cloud storage (S3) using the commented block in `production.py`.
+- New uploads are served immediately (no restart/collectstatic needed for media).
+- If you later outgrow Django-served media, move to object storage (S3) via the
+  commented block in `production.py`, or serve `/media/` from the web server.
 
 ---
 
@@ -289,7 +289,7 @@ mkdir -p tmp && touch tmp/restart.txt      # graceful Passenger restart
 | `Can not find valid pkg-config name` / mysqlclient build fails | You're trying to build `mysqlclient`. Don't — use **PyMySQL** (already in requirements); remove any `mysqlclient` line. |
 | `django.db.utils.OperationalError` | Wrong `DB_*` values, or user not added to the DB with privileges (Step 1). |
 | CSS/JS missing (unstyled site) | Run `collectstatic`; confirm `whitenoise` installed and its middleware line is present in `production.py`. |
-| Uploaded images 404 | Media symlink missing (Step 8) or `media/` not writable. |
+| Uploaded images 404 (`/media/...`) | Deploy the current `journalpro/urls.py` (it serves `/media/` in production), then restart. Also confirm `media/` exists and the file is on disk. |
 | `DisallowedHost` | Add the exact domain(s) to `ALLOWED_HOSTS` in `.env`, then restart. |
 | Infinite HTTPS redirect | Set `SECURE_SSL_REDIRECT=False` until AutoSSL is issued, then flip back to `True`. |
 | CSRF "Origin checking failed" | Add `CSRF_TRUSTED_ORIGINS=https://journals.example.edu.ng` handling (add to `production.py` from env) if on Django's stricter CSRF. |
