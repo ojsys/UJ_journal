@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #ffc107;
+            color: #333;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border: 1px solid #dee2e6;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #4F46E5;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #14121F;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 0 0 5px 5px;
+        }
+        .info-box {
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            color: white;
+            border-radius: 3px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .badge-success { background-color: #4F46E5; }
+        .badge-warning { background-color: #ffc107; color: #333; }
+        .badge-danger { background-color: #dc3545; }
+        .badge-info { background-color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 New Guest Reviewer Feedback</h1>
+        </div>
+        <div class="content">
+            <p><strong>Guest Reviewer Feedback Received</strong></p>
+
+            <p>A guest reviewer has submitted their feedback for a manuscript.</p>
+
+            <div class="info-box">
+                <h3>Reviewer Information</h3>
+                <p><strong>Name:</strong> {{ guest_reviewer.first_name }} {{ guest_reviewer.last_name }}</p>
+                <p><strong>Email:</strong> {{ guest_reviewer.email }}</p>
+                {% if guest_reviewer.affiliation %}
+                <p><strong>Affiliation:</strong> {{ guest_reviewer.affiliation }}</p>
+                {% endif %}
+            </div>
+
+            <div class="info-box">
+                <h3>Submission Details</h3>
+                <p><strong>Manuscript ID:</strong> {{ submission.anonymized_identifier }}</p>
+                <p><strong>Title:</strong> {{ submission.title }}</p>
+                <p><strong>Author:</strong> {{ submission.author.get_full_name }}</p>
+                <p><strong>Journal:</strong> {{ journal.name }}</p>
+            </div>
+
+            <div class="info-box">
+                <h3>Review Summary</h3>
+                <p><strong>Recommendation:</strong>
+                    {% if recommendation == 'approve' %}
+                        <span class="badge badge-success">Approve for Publication</span>
+                    {% elif recommendation == 'minor_revision' %}
+                        <span class="badge badge-info">Minor Revisions Needed</span>
+                    {% elif recommendation == 'major_revision' %}
+                        <span class="badge badge-warning">Major Revisions Needed</span>
+                    {% elif recommendation == 'reject' %}
+                        <span class="badge badge-danger">Reject</span>
+                    {% endif %}
+                </p>
+                <p><strong>Submitted:</strong> {{ submitted_at|date:"F d, Y H:i" }}</p>
+                {% if amended_document %}
+                <p><strong>Amended Document:</strong> Yes (attached)</p>
+                {% endif %}
+            </div>
+
+            <center>
+                <a href="{{ admin_url }}" class="button">View Full Feedback</a>
+            </center>
+
+            <p><small>Login to the admin panel to view the complete feedback and make editorial decisions.</small></p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{ site_name }} Editorial System</p>
+        </div>
+    </div>
+</body>
+</html>

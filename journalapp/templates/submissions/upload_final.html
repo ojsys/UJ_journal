@@ -1,0 +1,38 @@
+{% extends 'journalapp/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Upload final document{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center"><div class="col-lg-8">
+        <div class="mb-4">
+            <span class="uj-kicker">Publish</span>
+            <h1 class="mt-1 mb-0" style="font-size:28px;">Upload final document</h1>
+        </div>
+
+        <div class="alert alert-info">
+            <h6 class="mb-2"><i class="material-icons align-middle me-1" style="font-size:18px;">info</i> What happens next</h6>
+            <p class="mb-2" style="font-size:14px;">The system will automatically extract the title, abstract, keywords, main content, and references from the uploaded document.</p>
+            <p class="mb-0" style="font-size:14px;">You'll be able to review and edit the extracted content before publishing.</p>
+        </div>
+
+        <div class="uj-panel p-3 mb-4" style="box-shadow:none;">
+            <span class="uj-msid">{{ submission.anonymized_identifier }}</span>
+            <h5 class="mt-2 mb-1">{{ submission.title|default:"Untitled manuscript" }}</h5>
+            <small class="text-muted">{{ submission.author.get_full_name|default:submission.author.email }} · {{ submission.journal.name }}</small>
+        </div>
+
+        <div class="card"><div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form|crispy }}
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-success"><i class="material-icons" style="font-size:17px;">file_upload</i> Upload &amp; extract content</button>
+                    <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-light">Cancel</a>
+                </div>
+            </form>
+        </div></div>
+    </div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Share with Author{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-share me-2"></i>Share Feedback with Author
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle me-2"></i>What will be shared</h5>
+                        <p class="mb-0">An email will be sent to the author with a summary of reviewer feedback. The author can then view their submission with the feedback details and download any amended documents.</p>
+                    </div>
+
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h5>Submission Details</h5>
+                            <p class="mb-1"><strong>Title:</strong> {{ submission.title }}</p>
+                            <p class="mb-1"><strong>Author:</strong> {{ submission.author.get_full_name|default:submission.author.email }}</p>
+                            <p class="mb-1"><strong>Author Email:</strong> {{ submission.author.email }}</p>
+                            <p class="mb-0"><strong>Journal:</strong> {{ submission.journal.name }}</p>
+                        </div>
+                    </div>
+
+                    {% if completed_assignments %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Feedback to be Shared</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            {% for assignment in completed_assignments %}
+                            <div class="p-3 {% if not forloop.last %}border-bottom{% endif %}">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <strong>Reviewer {{ forloop.counter }}</strong>
+                                        <span class="text-muted">({{ assignment.get_role_display }})</span>
+                                    </div>
+                                    <div>
+                                        {% if assignment.recommendation == 'approve' %}
+                                            <span class="badge bg-success">Approve</span>
+                                        {% elif assignment.recommendation == 'minor_revision' %}
+                                            <span class="badge bg-warning text-dark">Minor Revision</span>
+                                        {% elif assignment.recommendation == 'major_revision' %}
+                                            <span class="badge text-white" style="background-color: #e67e22;">Major Revision</span>
+                                        {% elif assignment.recommendation == 'reject' %}
+                                            <span class="badge bg-danger">Reject</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ assignment.recommendation|default:"No recommendation" }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted d-block mb-1">Feedback:</small>
+                                    {% if assignment.feedback %}
+                                        <p class="mb-0">{{ assignment.feedback }}</p>
+                                    {% else %}
+                                        <p class="mb-0 text-muted fst-italic">No written feedback provided.</p>
+                                    {% endif %}
+                                </div>
+                                {% if assignment.amended_document %}
+                                <div class="mt-2">
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-file me-1"></i>Amended document available
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        No completed reviews found for this submission.
+                    </div>
+                    {% endif %}
+
+                    {% if latest_version %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Latest Document Version</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2">
+                                <strong>Version {{ latest_version.version_number }}</strong>
+                                <span class="text-muted">- Uploaded {{ latest_version.uploaded_at|date:"M d, Y H:i" }}</span>
+                            </p>
+                            <a href="{% url 'download_document' latest_version.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-download me-1"></i>Download Document
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if amended_documents %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-file-medical me-2"></i>Amended Documents from Reviewers</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            {% for doc in amended_documents %}
+                            <div class="p-3 {% if not forloop.last %}border-bottom{% endif %}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>From: {{ doc.reviewer.get_full_name|default:doc.reviewer.email }}</strong>
+                                        <br>
+                                        <small class="text-muted">Recommendation: {{ doc.recommendation }}</small>
+                                    </div>
+                                    <a href="{{ doc.document.url }}" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>Send to Author
+                            </button>
+                            <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

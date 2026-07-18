@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #17a2b8;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border: 1px solid #dee2e6;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #4F46E5;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #14121F;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 0 0 5px 5px;
+        }
+        .submission-box {
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #6c757d;
+            color: white;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>New Review Assignment</h1>
+        </div>
+        <div class="content">
+            <p>Dear {{ guest_reviewer.first_name }} {{ guest_reviewer.last_name }},</p>
+
+            <p>You have been assigned a new manuscript to review for <strong>{{ journal.name }}</strong>.</p>
+
+            <div class="submission-box">
+                <h3>Submission Details</h3>
+                {% if blinded %}
+                <p><strong>Manuscript ID:</strong> {{ submission.anonymized_identifier }}</p>
+                <p><span class="badge">Blind Review</span> Author information is hidden</p>
+                {% else %}
+                <p><strong>Author:</strong> {{ submission.author.get_full_name }}</p>
+                {% endif %}
+                <p><strong>Title:</strong> {{ submission.title }}</p>
+                <p><strong>Journal:</strong> {{ journal.name }}</p>
+                <p><strong>Submitted:</strong> {{ submission.submitted_at|date:"F d, Y" }}</p>
+                {% if deadline %}
+                <p><strong>Review Deadline:</strong> {{ deadline|date:"F d, Y" }}</p>
+                {% endif %}
+            </div>
+
+            {% if notes %}
+            <div class="submission-box">
+                <h4>Assignment Notes:</h4>
+                <p>{{ notes }}</p>
+            </div>
+            {% endif %}
+
+            <p><strong>To begin your review, click the button below:</strong></p>
+
+            <center>
+                <a href="{{ review_url }}" class="button">Start Review</a>
+            </center>
+
+            <p><small>Or copy and paste this link into your browser:<br>
+            <a href="{{ review_url }}">{{ review_url }}</a></small></p>
+
+            <p><strong>Review Process:</strong></p>
+            <ol>
+                <li>Click the link above to access the submission</li>
+                <li>Download and review the manuscript</li>
+                <li>Provide your feedback and recommendation</li>
+                <li>Submit your review using the online form</li>
+            </ol>
+
+            <p>If you have any questions or are unable to complete this review, please contact us at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+
+            <p>Thank you for your valuable contribution!</p>
+
+            <p>Best regards,<br>
+            <strong>{{ site_name }} Editorial Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{ site_name }}. This is an automated email, please do not reply directly.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,193 @@
+{% extends 'journalapp/base.html' %}
+{% load humanize %}
+
+{% block title %}Admin — Submission pipeline{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sub-item { padding: 1rem 1.25rem; border-bottom: 1px solid var(--uj-border-2); transition: background-color .15s ease; }
+    .sub-item:hover { background: var(--uj-bg); }
+    .sub-item:last-child { border-bottom: none; }
+    .queue-head { font-family: var(--uj-font-display); font-weight:700; display:flex; justify-content:space-between; align-items:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="uj-kicker">Admin dashboard</span>
+            <h1 class="mt-1 mb-1" style="font-size:30px;">Submission pipeline</h1>
+            <p class="text-muted mb-0">Assign reviewers, track review progress, and publish approved manuscripts.</p>
+        </div>
+        <a href="{% url 'admin_submission_list' %}" class="btn btn-primary btn-lg"><i class="material-icons" style="font-size:18px;">list_alt</i> All submissions</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-4 col-lg-2"><a href="{% url 'admin_submission_list' %}?status=pending" class="uj-stat h-100 d-block text-decoration-none"><div class="uj-stat__value" style="color:var(--uj-warn-fg);">{{ submission_stats.pending }}</div><div class="uj-stat__label">Pending</div></a></div>
+        <div class="col-4 col-lg-2"><a href="{% url 'admin_submission_list' %}?status=in_review" class="uj-stat h-100 d-block text-decoration-none"><div class="uj-stat__value" style="color:var(--uj-info-fg);">{{ submission_stats.in_review }}</div><div class="uj-stat__label">In review</div></a></div>
+        <div class="col-4 col-lg-2"><a href="{% url 'admin_submission_list' %}?status=revised" class="uj-stat h-100 d-block text-decoration-none"><div class="uj-stat__value">{{ submission_stats.revised }}</div><div class="uj-stat__label">Revised</div></a></div>
+        <div class="col-4 col-lg-2"><a href="{% url 'admin_submission_list' %}?status=approved" class="uj-stat h-100 d-block text-decoration-none"><div class="uj-stat__value" style="color:var(--uj-success-fg);">{{ submission_stats.approved }}</div><div class="uj-stat__label">Approved</div></a></div>
+        <div class="col-4 col-lg-2"><div class="uj-stat h-100"><div class="uj-stat__value" style="color:var(--uj-success-fg);">{{ submission_stats.published }}</div><div class="uj-stat__label">Published</div></div></div>
+        <div class="col-4 col-lg-2"><div class="uj-stat h-100"><div class="uj-stat__value">{{ submission_stats.total }}</div><div class="uj-stat__label">Total</div></div></div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left column: action queues -->
+        <div class="col-lg-8">
+            {% if pending_submissions %}
+            <div class="card mb-4">
+                <div class="card-header queue-head"><span><i class="material-icons align-middle me-1" style="font-size:18px; color:var(--uj-warn-fg);">error_outline</i> Pending — need assignment</span><a href="{% url 'admin_submission_list' %}?status=pending" class="btn btn-outline-primary btn-sm">View all</a></div>
+                <div class="card-body p-0">
+                    {% for submission in pending_submissions %}
+                    <div class="sub-item d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <h6 class="mb-1">{{ submission.title|truncatewords:10|default:"Untitled submission" }}</h6>
+                            <small class="text-muted"><span class="uj-msid">{{ submission.anonymized_identifier }}</span> · {{ submission.journal.name }} · {{ submission.submitted_at|naturaltime }}</small>
+                        </div>
+                        <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-primary btn-sm"><i class="material-icons" style="font-size:15px;">person_add</i> Assign</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if completed_review_submissions %}
+            <div class="card mb-4">
+                <div class="card-header queue-head"><span><i class="material-icons align-middle me-1" style="font-size:18px; color:var(--uj-info-fg);">fact_check</i> Completed reviews — awaiting decision</span><span class="uj-pill uj-pill--info">{{ submission_stats.completed_reviews }}</span></div>
+                <div class="card-body p-0">
+                    {% for submission in completed_review_submissions %}
+                    <div class="sub-item">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ submission.title|truncatewords:10|default:"Untitled submission" }}</h6>
+                                <small class="text-muted d-block mb-2"><span class="uj-msid">{{ submission.anonymized_identifier }}</span> · {{ submission.journal.name }}</small>
+                                {% for assignment in submission.assignments.all %}{% if assignment.status == 'completed' %}
+                                <div class="d-flex align-items-center gap-2 mb-1" style="font-size:13px;">
+                                    <span class="text-muted">{{ assignment.reviewer_name }}:</span>
+                                    {% if assignment.recommendation == 'approve' %}<span class="uj-pill uj-pill--success">Approve</span>
+                                    {% elif assignment.recommendation == 'minor_revision' %}<span class="uj-pill uj-pill--warn">Minor revision</span>
+                                    {% elif assignment.recommendation == 'major_revision' %}<span class="uj-pill uj-pill--warn">Major revision</span>
+                                    {% elif assignment.recommendation == 'reject' %}<span class="uj-pill uj-pill--danger">Reject</span>
+                                    {% else %}<span class="uj-pill">{{ assignment.recommendation|default:"—" }}</span>{% endif %}
+                                </div>
+                                {% endif %}{% endfor %}
+                            </div>
+                            <div class="d-grid gap-1">
+                                <a href="{% url 'approve_submission' submission.pk %}" class="btn btn-success btn-sm"><i class="material-icons" style="font-size:15px;">check</i> Approve</a>
+                                <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">visibility</i> Details</a>
+                                <a href="{% url 'share_with_author' submission.pk %}" class="btn btn-light btn-sm"><i class="material-icons" style="font-size:15px;">share</i> Share</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if revised_submissions %}
+            <div class="card mb-4">
+                <div class="card-header queue-head"><span><i class="material-icons align-middle me-1" style="font-size:18px;">restart_alt</i> Revised — need re-review</span><a href="{% url 'admin_submission_list' %}?status=revised" class="btn btn-outline-primary btn-sm">View all</a></div>
+                <div class="card-body p-0">
+                    {% for submission in revised_submissions %}
+                    <div class="sub-item d-flex justify-content-between align-items-start gap-2">
+                        <div><h6 class="mb-1">{{ submission.title|truncatewords:10|default:"Untitled submission" }}</h6><small class="text-muted"><span class="uj-msid">{{ submission.anonymized_identifier }}</span> · Revised {{ submission.updated_at|naturaltime }}</small></div>
+                        <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">visibility</i> Review</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if approved_submissions %}
+            <div class="card mb-4">
+                <div class="card-header queue-head"><span><i class="material-icons align-middle me-1" style="font-size:18px; color:var(--uj-success-fg);">check_circle</i> Approved — ready to publish</span><a href="{% url 'admin_submission_list' %}?status=approved" class="btn btn-outline-primary btn-sm">View all</a></div>
+                <div class="card-body p-0">
+                    {% for submission in approved_submissions %}
+                    <div class="sub-item d-flex justify-content-between align-items-start gap-2">
+                        <div><h6 class="mb-1">{{ submission.title|truncatewords:10|default:"Untitled submission" }}</h6><small class="text-muted"><span class="uj-msid">{{ submission.anonymized_identifier }}</span> · {{ submission.journal.name }}</small></div>
+                        <a href="{% url 'upload_final_document' submission.pk %}" class="btn btn-success btn-sm"><i class="material-icons" style="font-size:15px;">publish</i> Publish</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card mb-4">
+                <div class="card-header queue-head"><span>Recent submissions</span><a href="{% url 'admin_submission_list' %}" class="btn btn-outline-primary btn-sm">View all</a></div>
+                <div class="card-body p-0">
+                    {% for submission in recent_submissions %}
+                    <div class="sub-item d-flex justify-content-between align-items-center gap-2">
+                        <div><h6 class="mb-1">{{ submission.title|truncatewords:8|default:"Untitled" }}</h6><small class="text-muted"><span class="uj-msid">{{ submission.anonymized_identifier }}</span> · {{ submission.updated_at|naturaltime }}</small></div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% include 'journalapp/partials/_submission_status.html' with status=submission.status %}
+                            <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">visibility</i></a>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-5"><span class="uj-brand-mark mx-auto mb-3" style="width:56px;height:56px;border-radius:16px;"><i class="material-icons">inbox</i></span><p class="text-muted mb-0">No submissions yet</p></div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">Quick actions</div>
+                <div class="card-body d-grid gap-2">
+                    <a href="{% url 'admin_submission_list' %}?status=pending" class="btn btn-outline-primary justify-content-start"><i class="material-icons" style="font-size:17px;">person_add</i> Assign pending ({{ submission_stats.pending }})</a>
+                    <a href="{% url 'admin_submission_list' %}?status=approved" class="btn btn-outline-primary justify-content-start"><i class="material-icons" style="font-size:17px;">publish</i> Publish approved ({{ submission_stats.approved }})</a>
+                    <a href="{% url 'manage_guest_reviewers' %}" class="btn btn-outline-primary justify-content-start"><i class="material-icons" style="font-size:17px;">group_add</i> Guest reviewers</a>
+                    <a href="{% url 'admin:journalapp_customuser_changelist' %}" class="btn btn-outline-primary justify-content-start"><i class="material-icons" style="font-size:17px;">group</i> Manage users</a>
+                    <a href="{% url 'admin:journalapp_journal_changelist' %}" class="btn btn-outline-primary justify-content-start"><i class="material-icons" style="font-size:17px;">menu_book</i> Manage journals</a>
+                    <a href="{% url 'site_settings' %}" class="btn btn-outline-primary justify-content-start"><i class="material-icons" style="font-size:17px;">settings</i> Site settings</a>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">Submissions by journal</div>
+                <div class="card-body d-grid gap-2">
+                    {% for stat in journal_stats %}
+                    <div class="uj-panel p-3 d-flex justify-content-between align-items-center" style="box-shadow:none;">
+                        <div><strong style="font-size:14px;">{{ stat.journal.name }}</strong><br><small class="text-muted">{{ stat.submissions }} total</small></div>
+                        {% if stat.pending > 0 %}<span class="uj-pill uj-pill--warn">{{ stat.pending }} pending</span>{% endif %}
+                    </div>
+                    {% empty %}<p class="text-muted text-center mb-0">No journals configured</p>{% endfor %}
+                </div>
+            </div>
+
+            {% if reviewers %}
+            <div class="card mb-4">
+                <div class="card-header">Available reviewers</div>
+                <div class="card-body d-grid gap-2">
+                    {% for profile in reviewers %}<div class="d-flex align-items-center gap-2" style="font-size:14px;"><i class="material-icons" style="font-size:18px; color:var(--uj-indigo);">person</i> {{ profile.user.get_full_name|default:profile.user.email }}</div>{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if editors %}
+            <div class="card mb-4">
+                <div class="card-header">Available editors</div>
+                <div class="card-body d-grid gap-2">
+                    {% for profile in editors %}<div class="d-flex align-items-center gap-2" style="font-size:14px;"><i class="material-icons" style="font-size:18px; color:var(--uj-violet);">edit</i> {{ profile.user.get_full_name|default:profile.user.email }}</div>{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if guest_reviewers %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center"><span>Guest reviewers</span><a href="{% url 'manage_guest_reviewers' %}" class="btn btn-outline-primary btn-sm">Manage</a></div>
+                <div class="card-body d-grid gap-2">
+                    {% for guest in guest_reviewers %}
+                    <div style="font-size:14px;"><i class="material-icons align-middle" style="font-size:18px; color:var(--uj-warn-fg);">schedule</i> {{ guest.get_full_name }} <small class="text-muted">({{ guest.email }})</small>{% if guest.affiliation %}<br><small class="text-muted ms-4">{{ guest.affiliation }}</small>{% endif %}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

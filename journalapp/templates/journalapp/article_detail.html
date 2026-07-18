@@ -6,355 +6,240 @@
 
 {% block extra_css %}
 <style>
-    .journal-header {
-        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
-        color: white;
-        padding: 3rem 0;
-        margin-bottom: 2rem;
-    }
-    
-    .journal-title {
-        font-weight: 700;
-        margin-bottom: 1rem;
-    }
-    
-    .journal-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .journal-meta-item {
-        display: flex;
-        align-items: center;
-    }
-    
-    .journal-content {
-        line-height: 1.8;
-        font-size: 1.1rem;
-    }
-    
-    .journal-content p {
-        margin-bottom: 1.5rem;
-    }
-    
-    .comment-card {
-        margin-bottom: 1.5rem;
-        border-left: 4px solid var(--primary-color);
-    }
-    
-    .comment-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-    }
-    
-    .comment-author {
-        font-weight: 600;
-    }
-    
-    .comment-date {
-        color: #6c757d;
-        font-size: 0.9rem;
-    }
-    
-    .related-journal-card {
-        transition: all 0.3s ease;
-    }
-    
-    .related-journal-card:hover {
-        transform: translateY(-5px);
-    }
-    
-    .file-download-card {
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    
-    .file-download-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .section-divider {
-        height: 1px;
-        background-color: #e9ecef;
-        margin: 3rem 0;
-    }
+    .article-head { padding: 2.5rem 0 1.5rem; }
+    .article-title { font-size: clamp(28px, 3.4vw, 40px); line-height: 1.15; letter-spacing: -0.02em; }
+    .journal-content { line-height: 1.85; font-size: 16.5px; font-family: var(--uj-font-body); color: var(--uj-text); }
+    .journal-content p { margin-bottom: 1.35rem; }
+    .journal-content h1,.journal-content h2,.journal-content h3 { margin: 2rem 0 1rem; }
+    .comment-card { border-left: 3px solid var(--uj-indigo); }
+    .kw-chip { display:inline-flex; padding:5px 12px; border-radius:999px; background:var(--uj-surface-2); color:var(--uj-muted); font-size:12.5px; font-weight:600; font-family:var(--uj-font-display); }
+    .sticky-side { position: sticky; top: 90px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Journal Header -->
-<div class="journal-header">
-    <div class="container">
+<div class="container">
+    <!-- Article header -->
+    <div class="article-head">
+        <a href="{% url 'article_list' %}" class="uj-nav-link d-inline-flex align-items-center gap-1 mb-3 px-0" style="background:none;">
+            <i class="material-icons" style="font-size:18px;">arrow_back</i> Back to articles
+        </a>
         <div class="row">
-            <div class="col-lg-8 mx-auto">
-                <h1 class="journal-title">{{ article.title }}</h1>
-                <div class="journal-meta">
-                    <div class="journal-meta-item">
-                        <i class="material-icons me-1">person</i>
-                        <span>{{ article.author.get_full_name|default:article.author.first_name }}</span>
-                    </div>
-                    <div class="journal-meta-item">
-                        <i class="material-icons me-1">school</i>
-                        <span>{{ article.department.name }}</span>
-                    </div>
-                    <div class="journal-meta-item">
-                        <i class="material-icons me-1">category</i>
-                        <span>{{ article.category.name }}</span>
-                    </div>
-                    {% if article.published_at %}
-                    <div class="journal-meta-item">
-                        <i class="material-icons me-1">calendar_today</i>
-                        <span>{{ article.published_at|date:"F d, Y" }}</span>
-                    </div>
-                    {% endif %}
+            <div class="col-lg-9">
+                <span class="uj-kicker">{% if article.journal %}{{ article.journal.name }}{% endif %}{% if article.category %} · {{ article.category.name }}{% endif %}</span>
+                <h1 class="article-title mt-2 mb-3">{{ article.title }}</h1>
+                <div class="d-flex flex-wrap align-items-center gap-3 mb-3" style="font-size:14px; color:var(--uj-muted);">
+                    <span class="d-inline-flex align-items-center gap-1"><i class="material-icons" style="font-size:17px;">person</i> {{ article.author.get_full_name|default:article.author.first_name }}</span>
+                    {% if article.journal.department %}<span class="d-inline-flex align-items-center gap-1"><i class="material-icons" style="font-size:17px;">school</i> {{ article.journal.department.name }}</span>{% endif %}
+                    {% if article.published_at %}<span class="d-inline-flex align-items-center gap-1"><i class="material-icons" style="font-size:17px;">event</i> {{ article.published_at|date:"F d, Y" }}</span>{% endif %}
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex flex-wrap gap-3 mb-3" style="font-size:13px; color:var(--uj-muted-2);">
+                    {% if article.volume %}<span>Vol {{ article.volume }}</span>{% endif %}
+                    {% if article.issue %}<span>· Issue {{ article.issue }}</span>{% endif %}
+                    {% if article.page_numbers %}<span>· pp. {{ article.page_numbers }}</span>{% endif %}
+                    {% if article.doi %}<span>· DOI {{ article.doi }}</span>{% endif %}
+                </div>
+                <div class="d-flex flex-wrap gap-2">
                     {% if user.is_authenticated %}
-                    <a href="{% url 'article_pdf' article.pk %}" class="btn btn-light btn-sm" target="_blank">
-                        <i class="material-icons me-1" style="font-size: 16px;">picture_as_pdf</i> Download PDF
+                    <a href="{% url 'article_pdf' article.pk %}" class="btn btn-primary" target="_blank">
+                        <i class="material-icons" style="font-size:17px;">picture_as_pdf</i> Download PDF
                     </a>
-                    {% if article.author == user or user.is_staff %}
-                    <a href="{% url 'article_update' article.pk %}" class="btn btn-light btn-sm">
-                        <i class="material-icons me-1" style="font-size: 16px;">edit</i> Edit
+                    {% if article.status != 'published' and article.author == user or user.is_staff %}
+                        {% if article.status != 'published' %}
+                        <a href="{% url 'article_update' article.pk %}" class="btn btn-outline-primary">
+                            <i class="material-icons" style="font-size:17px;">edit</i> Edit
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                    {% else %}
+                    <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary">
+                        <i class="material-icons" style="font-size:17px;">login</i> Log in to download PDF
                     </a>
                     {% endif %}
-                    {% endif %}
+                    <span class="badge bg-primary align-self-center">{{ article.get_status_display }}</span>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="container">
-    <div class="row">
+    <hr class="uj-divider mb-4">
+
+    <div class="row g-4">
         <!-- Main Content -->
         <div class="col-lg-8">
             <!-- Abstract -->
             <div class="card mb-4">
                 <div class="card-body">
-                    <h5 class="card-title d-flex align-items-center">
-                        <i class="material-icons me-2">description</i> Abstract
-                    </h5>
-                    <p class="card-text">{{ article.abstract|safe }}</p>
+                    <span class="uj-kicker">Abstract</span>
+                    <p class="mt-3 mb-0" style="line-height:1.8;">{{ article.abstract|safe }}</p>
                 </div>
             </div>
-            
-            <!-- Keywords (if available) -->
-            {% if article.keywords %}
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title d-flex align-items-center">
-                        <i class="material-icons me-2">label</i> Keywords
-                    </h5>
-                    <p class="card-text">{{ article.keywords }}</p>
+
+            <!-- Keywords -->
+            {% if article.keywords_list %}
+            <div class="mb-4">
+                <span class="uj-kicker d-block mb-2">Keywords</span>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for kw in article.keywords_list %}<span class="kw-chip">{{ kw }}</span>{% endfor %}
                 </div>
             </div>
             {% endif %}
-            
-            <!-- File Download (if available) -->
+
+            <!-- File Download -->
             {% if article.file %}
-            <div class="file-download-card">
-                <div class="d-flex justify-content-between align-items-center">
+            <div class="uj-panel p-3 p-md-4 mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="uj-brand-mark" style="width:44px;height:44px;border-radius:12px;"><i class="material-icons">description</i></span>
                     <div>
-                        <h5 class="mb-0">Full Paper</h5>
-                        <p class="text-muted mb-0">Download the complete article paper</p>
+                        <h6 class="mb-0">Full paper</h6>
+                        <small class="text-muted">Download the complete article document</small>
                     </div>
-                    {% if user.is_authenticated %}
-                    <a href="{{ article.file.url }}" class="btn btn-primary file-download-btn" download>
-                        <i class="material-icons me-1">download</i> Download PDF
-                    </a>
-                    {% else %}
-                    <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary file-download-btn">
-                        <i class="material-icons me-1">login</i> Login to Download
-                    </a>
-                    {% endif %}
                 </div>
+                {% if user.is_authenticated %}
+                <a href="{{ article.file.url }}" class="btn btn-primary" download><i class="material-icons" style="font-size:17px;">download</i> Download</a>
+                {% else %}
+                <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">login</i> Log in to download</a>
+                {% endif %}
             </div>
             {% endif %}
-            
-            <!-- Journal Content -->
+
+            <!-- Content -->
             <div class="card mb-4">
                 <div class="card-body">
-                    <h5 class="card-title d-flex align-items-center mb-4">
-                        <i class="material-icons me-2">article</i> Content
-                    </h5>
-                    <div class="journal-content">
+                    <span class="uj-kicker">Full text</span>
+                    <div class="journal-content mt-3">
                         {% if user.is_authenticated %}
                             {{ article.content|safe }}
                         {% else %}
-                            <div class="mb-4">
-                                {{ article.content|truncatewords:100|safe }}
-                            </div>
+                            <div class="mb-4">{{ article.content|truncatewords:100|safe }}</div>
                             <div class="alert alert-info d-flex align-items-center">
                                 <i class="material-icons me-2">lock</i>
-                                <div>
-                                    <strong>Full content restricted.</strong> Please 
-                                    <a href="{% url 'login' %}?next={{ request.path }}" class="alert-link">login</a> 
-                                    to read the entire article.
-                                </div>
+                                <div><strong>Full text restricted.</strong> Please <a href="{% url 'login' %}?next={{ request.path }}" class="alert-link">log in</a> to read the entire article.</div>
                             </div>
-                            <div class="text-center mt-4">
-                                <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary">
-                                    <i class="material-icons me-1" style="font-size: 16px;">login</i> Log in to Continue Reading
-                                </a>
-                                <a href="{% url 'register' %}?next={{ request.path }}" class="btn btn-outline-primary ms-2">
-                                    <i class="material-icons me-1" style="font-size: 16px;">person_add</i> Register
-                                </a>
+                            <div class="d-flex flex-wrap gap-2 mt-4">
+                                <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">login</i> Log in to continue reading</a>
+                                <a href="{% url 'register' %}?next={{ request.path }}" class="btn btn-outline-primary">Register</a>
                             </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
-            
-            <div class="section-divider"></div>
-            
-            <!-- Comments Section -->
-            <h3 class="mb-4 d-flex align-items-center">
-                <i class="material-icons me-2">comment</i> Comments
-            </h3>
+
+            <hr class="uj-divider my-4">
+
+            <!-- Comments -->
+            <h3 class="mb-4 d-flex align-items-center gap-2"><i class="material-icons">forum</i> Comments</h3>
 
             {% if user.is_authenticated %}
             <div class="card mb-4">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Leave a Comment</h5>
+                    <h6 class="mb-3">Leave a comment</h6>
                     <form method="post">
                         {% csrf_token %}
                         {% crispy comment_form %}
                         <div class="mt-3">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="material-icons me-1" style="font-size: 16px;">send</i> Post Comment
-                            </button>
+                            <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">send</i> Post comment</button>
                         </div>
                     </form>
                 </div>
             </div>
             {% else %}
             <div class="alert alert-info d-flex align-items-center mb-4">
-                <i class="material-icons me-2">info</i>
-                Please <a href="{% url 'login' %}">login</a> to leave a comment.
+                <i class="material-icons me-2">info</i> Please <a href="{% url 'login' %}" class="alert-link ms-1">log in</a> to leave a comment.
             </div>
             {% endif %}
-            
-            <!-- Comments List -->
+
             {% if article.comments.all %}
                 {% for comment in article.comments.all %}
                 <div class="card comment-card mb-3">
                     <div class="card-body">
-                        <div class="comment-header">
-                            <span class="comment-author d-flex align-items-center">
-                                <i class="material-icons me-1" style="font-size: 16px;">person</i>
-                                {{ comment.author.get_full_name|default:comment.author.username }}
-                            </span>
-                            <span class="comment-date d-flex align-items-center">
-                                <i class="material-icons me-1" style="font-size: 14px;">access_time</i>
-                                {{ comment.created_at|date:"M d, Y H:i" }}
-                            </span>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold d-flex align-items-center gap-1"><i class="material-icons" style="font-size:16px;">person</i> {{ comment.author.get_full_name|default:comment.author.email }}</span>
+                            <span class="text-muted d-flex align-items-center gap-1" style="font-size:12.5px;"><i class="material-icons" style="font-size:14px;">schedule</i> {{ comment.created_at|date:"M d, Y H:i" }}</span>
                         </div>
                         <p class="mb-0">{{ comment.content|safe }}</p>
                     </div>
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="alert alert-light">No comments yet. Be the first to comment!</div>
+                <div class="uj-panel p-4 text-center text-muted">No comments yet. Be the first to comment.</div>
             {% endif %}
         </div>
-        
+
         <!-- Sidebar -->
         <div class="col-lg-4">
-            <!-- Author Info -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title d-flex align-items-center">
-                        <i class="material-icons me-2">person</i> About the Author
-                    </h5>
-                    <div class="d-flex align-items-center mb-3">
-                        {% if article.author.profile.profile_picture %}
-                        <img src="{{ article.author.profile.profile_picture.url }}" alt="{{ article.author.get_full_name }}" class="rounded-circle me-3" width="60" height="60">
-                        {% else %}
-                        <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
-                            <span class="text-white" style="font-size: 24px;">{{ article.author.first_name|first|upper }}</span>
-                        </div>
-                        {% endif %}
-                        <div>
-                            <h6 class="mb-0">{{ article.author.get_full_name|default:article.author.first_name }}</h6>
-                            {% if article.author.profile.department %}
-                            <p class="text-muted mb-0">{{ article.author.profile.department.name }}</p>
+            <div class="sticky-side d-grid gap-4">
+                <!-- Author -->
+                <div class="card">
+                    <div class="card-body">
+                        <span class="uj-kicker">About the author</span>
+                        <div class="d-flex align-items-center gap-3 mt-3 mb-3">
+                            {% if article.author.profile.profile_picture %}
+                            <img src="{{ article.author.profile.profile_picture.url }}" alt="{{ article.author.get_full_name }}" class="rounded-circle" width="56" height="56" style="object-fit:cover;">
+                            {% else %}
+                            <span class="uj-brand-mark" style="width:56px;height:56px;border-radius:50%;font-size:22px;font-family:var(--uj-font-display);font-weight:700;">{{ article.author.first_name|first|upper }}</span>
                             {% endif %}
+                            <div>
+                                <h6 class="mb-0">{{ article.author.get_full_name|default:article.author.first_name }}</h6>
+                                {% if article.author.profile.department %}<small class="text-muted">{{ article.author.profile.department.name }}</small>{% endif %}
+                            </div>
                         </div>
+                        {% if article.author.profile.bio %}<p class="mb-0" style="font-size:14px;">{{ article.author.profile.bio|truncatewords:30|safe }}</p>{% else %}<p class="text-muted mb-0" style="font-size:14px;">No bio available.</p>{% endif %}
                     </div>
-                    {% if article.author.profile.bio %}
-                    <p>{{ article.author.profile.bio|truncatewords:30 }}</p>
-                    {% else %}
-                    <p class="text-muted">No bio available.</p>
-                    {% endif %}
                 </div>
-            </div>
-            
-            <!-- Related Articles -->
-            {% if related_articles %}
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title d-flex align-items-center mb-3">
-                        <i class="material-icons me-2">library_books</i> Related Articles
-                    </h5>
-                    {% for related in related_articles %}
-                    <div class="card related-journal-card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">{{ related.title }}</h6>
-                            <p class="card-text small">{{ related.abstract|truncatewords:15|safe }}</p>
-                            <a href="{% url 'article_detail' related.pk %}" class="btn btn-sm btn-outline-primary">Read More</a>
+
+                <!-- Article info -->
+                <div class="card">
+                    <div class="card-body">
+                        <span class="uj-kicker">Article info</span>
+                        <div class="mt-3 d-grid gap-2" style="font-size:14px;">
+                            <div class="d-flex justify-content-between align-items-center"><span class="text-muted">Status</span><span class="badge bg-primary">{{ article.get_status_display }}</span></div>
+                            <div class="d-flex justify-content-between"><span class="text-muted">Created</span><span>{{ article.created_at|date:"M d, Y" }}</span></div>
+                            <div class="d-flex justify-content-between"><span class="text-muted">Updated</span><span>{{ article.updated_at|date:"M d, Y" }}</span></div>
                         </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- Article Status -->
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title d-flex align-items-center">
-                        <i class="material-icons me-2">info</i> Article Info
-                    </h5>
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Status
-                            <span class="badge bg-primary">{{ article.get_status_display }}</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Created
-                            <span>{{ article.created_at|date:"M d, Y" }}</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Last Updated
-                            <span>{{ article.updated_at|date:"M d, Y" }}</span>
-                        </li>
-                        
                         {% if article.status == 'under_review' and user.profile.is_reviewer %}
-                        <li class="list-group-item">
-                            <a href="{% url 'review_article' article.pk %}" class="btn btn-primary w-100">
-                                <i class="material-icons me-1" style="font-size: 16px;">rate_review</i> Review Article
-                            </a>
-                        </li>
+                        <a href="{% url 'review_article' article.pk %}" class="btn btn-primary w-100 mt-3 justify-content-center"><i class="material-icons" style="font-size:17px;">rate_review</i> Review article</a>
                         {% endif %}
-                        
                         {% if article.status == 'accepted' and user.profile.is_editor %}
-                        <li class="list-group-item">
-                            <a href="{% url 'publish_article' article.pk %}" class="btn btn-success w-100">
-                                <i class="material-icons me-1" style="font-size: 16px;">publish</i> Publish Article
-                            </a>
-                        </li>
+                        <a href="{% url 'publish_article' article.pk %}" class="btn btn-success w-100 mt-3 justify-content-center"><i class="material-icons" style="font-size:17px;">publish</i> Publish article</a>
                         {% endif %}
-                    </ul>
+                    </div>
                 </div>
+
+                <!-- Activity log -->
+                <div class="card">
+                    <div class="card-body">
+                        <span class="uj-kicker">Activity log</span>
+                        <ul class="uj-timeline mt-3 mb-0">
+                            {% for log in logs %}
+                            <li>
+                                <div class="fw-semibold" style="font-size:13.5px; color:var(--uj-ink);">{{ log.action }}</div>
+                                <div class="uj-tl-date">{{ log.user.get_full_name|default:'System' }} · {{ log.timestamp|date:"M d, Y" }}</div>
+                                {% if log.notes %}<div class="fst-italic text-muted mt-1" style="font-size:13px;">"{{ log.notes|truncatewords:20 }}"</div>{% endif %}
+                            </li>
+                            {% empty %}
+                            <li><span class="text-muted">No activity yet.</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Related -->
+                {% if related_articles %}
+                <div class="card">
+                    <div class="card-body">
+                        <span class="uj-kicker">Related articles</span>
+                        <div class="d-grid gap-3 mt-3">
+                            {% for related in related_articles %}
+                            <a href="{% url 'article_detail' related.pk %}" class="text-decoration-none">
+                                <h6 class="mb-1" style="color:var(--uj-ink);">{{ related.title }}</h6>
+                                <p class="text-muted mb-0" style="font-size:13px;">{{ related.abstract|truncatewords:14|safe }}</p>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

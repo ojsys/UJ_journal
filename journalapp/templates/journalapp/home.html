@@ -4,370 +4,279 @@
 
 {% block extra_css %}
 <style>
-    /* Hero Carousel Styling */
-    #heroCarousel {
-        margin-bottom: 3rem;
-    }
-    
-    #heroCarousel .carousel-item {
-        height: 600px;
-    }
-    
-    #heroCarousel .carousel-caption {
-        bottom: 5rem;
-        z-index: 10;
-        background-color: rgba(0, 0, 0, 0.5);
-        padding: 2rem;
-        border-radius: 8px;
-        max-width: 600px;
-        margin: 0 auto;
-    }
-    
-    #heroCarousel .carousel-caption h2 {
-        font-weight: 700;
-        margin-bottom: 1rem;
-    }
-    
-    /* Journal Cards */
-    .journal-card {
-        transition: all 0.3s ease;
-        height: 100%;
-    }
-    
-    .journal-card:hover {
-        transform: translateY(-10px);
-    }
-    
-    .journal-card .card-title {
-        font-weight: 600;
-        color: var(--primary-color);
-    }
-    
-    /* Department Journal Cards */
-    .department-journal-card {
-        text-align: center;
-        transition: all 0.3s ease;
-        height: 100%;
-        overflow: hidden;
-        border-radius: 8px;
-    }
-    
-    .department-journal-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-    }
-    
-    .department-journal-card .card-img-overlay {
-        background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.8));
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        padding: 1.5rem;
-    }
-    
-    .department-journal-card .card-title {
-        color: white;
-        font-weight: 700;
-        text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
-    }
-    
-    .department-journal-card .card-text {
-        color: rgba(255,255,255,0.9);
-    }
-    
-    .department-journal-card .btn {
-        margin-top: 1rem;
-        background-color: white;
-        color: var(--primary-color);
-        font-weight: 600;
-        border: none;
-    }
-    
-    .department-journal-card .btn:hover {
-        background-color: var(--primary-color);
-        color: white;
-    }
-    
-    /* Article Cards */
-    .article-card {
-        transition: all 0.3s ease;
-        height: 100%;
-    }
-    
-    .article-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    
-    .article-meta {
-        font-size: 0.85rem;
-        color: #6c757d;
-    }
-    
-    /* Call to Action Section */
-    .cta-section {
-        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
-        color: white;
-        border-radius: 8px;
-        padding: 3rem;
-        margin-top: 4rem;
-    }
-    
-    .cta-section h3 {
-        font-weight: 700;
-        margin-bottom: 1rem;
-    }
-    
-    .cta-btn {
-        background-color: white;
-        color: var(--primary-color);
-        border: none;
-        padding: 0.75rem 2rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    
-    .cta-btn:hover {
-        background-color: rgba(255, 255, 255, 0.9);
-        transform: translateY(-3px);
-    }
-    
-    .welcome-section {
-        padding: 4rem 0;
-    }
-    
-    .welcome-section h1 {
-        font-weight: 700;
-        margin-bottom: 1.5rem;
-    }
-    
-    .section-heading {
+    /* ---------- Hero (full-bleed) ---------- */
+    .uj-hero {
         position: relative;
-        padding-bottom: 1rem;
-        margin-bottom: 2rem;
-        font-weight: 700;
+        overflow: hidden;
+        background: linear-gradient(135deg, var(--uj-ink), #2b2745 55%, var(--uj-indigo-800));
     }
-    
-    .section-heading::after {
-        content: '';
-        position: absolute;
-        width: 70px;
-        height: 4px;
-        background-color: var(--primary-color);
-        bottom: 0;
-        left: 0;
+    .uj-hero__item { position: relative; min-height: 540px; display: flex; align-items: center; }
+    /* keep content vertically centered while Bootstrap toggles carousel slides */
+    .uj-hero .carousel-item.active,
+    .uj-hero .carousel-item.carousel-item-start,
+    .uj-hero .carousel-item.carousel-item-end { display: flex; align-items: center; }
+    .uj-hero__media { position: absolute; inset: 0; z-index: 0; }
+    .uj-hero__media img { width: 100%; height: 100%; object-fit: cover; }
+    .uj-hero__media::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(115deg, rgba(20,18,31,0.85), rgba(20,18,31,0.5) 55%, rgba(79,70,229,0.4));
     }
-    
-    .section-heading.text-center::after {
-        left: 50%;
-        transform: translateX(-50%);
+    .uj-hero__inner { position: relative; z-index: 2; max-width: 640px; padding: clamp(2.5rem, 6vw, 5rem) 0; }
+    .uj-hero h1 {
+        font-family: var(--uj-font-display); font-weight: 700;
+        font-size: clamp(34px, 4.6vw, 56px); line-height: 1.08;
+        letter-spacing: -0.02em; color: #fff; margin: 0;
     }
+    .uj-hero p { font-size: 16.5px; line-height: 1.6; max-width: 52ch; margin: 18px 0 0; color: rgba(255,255,255,0.86); }
+    .uj-hero__search { display: flex; gap: 10px; max-width: 500px; margin-top: 30px; }
+    .uj-hero__search input {
+        flex: 1; min-width: 0; padding: 14px 16px; border-radius: 12px; border: none;
+        font-size: 14.5px; color: var(--uj-ink); background: rgba(255,255,255,0.94); outline: none;
+    }
+    .uj-hero__search input:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.35); }
+    .uj-hero__search .btn { border-radius: 12px; padding: 12px 22px; white-space: nowrap; }
+    .uj-hero__dots { position: absolute; bottom: 22px; left: 0; right: 0; z-index: 3; display: flex; justify-content: center; gap: 8px; }
+    .uj-hero__dots button {
+        width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0;
+        background: rgba(255,255,255,0.5); cursor: pointer; transition: width .3s ease, background .3s ease;
+    }
+    .uj-hero__dots button.active { width: 26px; background: #fff; }
+    @media (max-width: 575.98px) {
+        .uj-hero__search { flex-direction: column; }
+        .uj-hero__search .btn { justify-content: center; }
+    }
+
+    /* ---------- Blind-review band ---------- */
+    .uj-band {
+        background: linear-gradient(135deg, var(--uj-tint), var(--uj-tint-2));
+        border: 1px solid var(--uj-border-indigo);
+        border-radius: var(--uj-r-xl);
+        padding: clamp(1.75rem, 4vw, 2.75rem);
+    }
+
+    /* ---------- Department / journal cards ---------- */
+    .uj-jcard { display: flex; flex-direction: column; height: 100%; text-decoration: none; }
+    .uj-jcard__media { height: 168px; border-radius: var(--uj-r-lg) var(--uj-r-lg) 0 0; overflow: hidden; position: relative; }
+    .uj-jcard__media img { width: 100%; height: 100%; object-fit: cover; }
+    .uj-jcard__code {
+        height: 168px; display: flex; align-items: center; justify-content: center;
+        background: var(--uj-grad); color: #fff;
+        font-family: var(--uj-font-display); font-weight: 700; font-size: 40px; letter-spacing: 0.04em;
+    }
+
+    /* ---------- Recently published ---------- */
+    .uj-focus { background: var(--uj-grad); color: #fff; border: none; }
+    .uj-focus .uj-kicker { color: rgba(255,255,255,0.85); }
+
+    /* ---------- CTA ---------- */
+    .uj-cta {
+        background: linear-gradient(135deg, var(--uj-indigo), var(--uj-violet) 55%, var(--uj-pink));
+        color: #fff; border-radius: var(--uj-r-xl);
+        padding: clamp(2rem, 5vw, 3.25rem); text-align: center;
+    }
+    .uj-cta .btn-white { background: #fff; color: var(--uj-indigo-800); border: none; box-shadow: 0 8px 22px rgba(0,0,0,0.18); }
+    .uj-cta .btn-white:hover { background: #fff; color: var(--uj-indigo-800); transform: translateY(-2px); }
+    .uj-cta .btn-ghost { background: rgba(255,255,255,0.14); color: #fff; border: 1.5px solid rgba(255,255,255,0.4); }
+    .uj-cta .btn-ghost:hover { background: rgba(255,255,255,0.24); color: #fff; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Hero Slider -->
+<!-- ============ HERO (full-bleed) ============ -->
 {% if hero_slides %}
-<div id="heroCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel">
-    <div class="carousel-indicators">
-        {% for slide in hero_slides %}
-        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active"{% endif %}></button>
-        {% endfor %}
+<section class="uj-hero">
+    <div id="heroCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel">
+        <div class="carousel-inner">
+            {% for slide in hero_slides %}
+            <div class="carousel-item uj-hero__item {% if forloop.first %}active{% endif %}">
+                <div class="uj-hero__media">
+                    <img src="{{ slide.image.url }}" alt="{{ slide.title }}">
+                </div>
+                <div class="container">
+                    <div class="uj-hero__inner">
+                        <span class="uj-pill uj-pill--ghost mb-3">
+                            <i class="material-icons" style="font-size:15px;">verified</i> Peer-reviewed research
+                        </span>
+                        <h1>{{ slide.title }}</h1>
+                        {% if slide.subtitle %}<p>{{ slide.subtitle }}</p>{% endif %}
+                        <form class="uj-hero__search" action="{% url 'article_search' %}" method="get">
+                            <input type="text" name="q" placeholder="Search articles, authors, keywords…">
+                            <button class="btn btn-primary" type="submit"><i class="material-icons" style="font-size:18px;">search</i> Search</button>
+                        </form>
+                        {% if slide.button_text and slide.button_url %}
+                        <a href="{{ slide.button_url }}" class="btn btn-outline-light mt-3" style="border-color:rgba(255,255,255,0.5); color:#fff;">{{ slide.button_text }}</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% if hero_slides|length > 1 %}
+        <div class="uj-hero__dots">
+            {% for slide in hero_slides %}
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active"{% endif %} aria-label="Slide {{ forloop.counter }}"></button>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
-    <div class="carousel-inner">
-        {% for slide in hero_slides %}
-        <div class="carousel-item {% if forloop.first %}active{% endif %}">
-            <img src="{{ slide.image.url }}" class="d-block w-100" alt="{{ slide.title }}" style="height: 600px; object-fit: cover;">
-            <div class="carousel-caption">
-                <h2>{{ slide.title }}</h2>
-                <p class="lead">{{ slide.subtitle }}</p>
-                {% if slide.button_text and slide.button_url %}
-                <a href="{{ slide.button_url }}" class="btn btn-light cta-btn mt-3">{{ slide.button_text }}</a>
-                {% endif %}
+</section>
+{% else %}
+<section class="uj-hero">
+    <div class="uj-hero__item">
+        <div class="container">
+            <div class="uj-hero__inner">
+                <span class="uj-pill uj-pill--ghost mb-3"><i class="material-icons" style="font-size:15px;">verified</i> Peer-reviewed research</span>
+                <h1>{{ site_settings.site_title|default:"University of Jos Journal System" }}</h1>
+                <p>{{ site_settings.site_description|default:"The University of Jos's platform for peer-reviewed research — from submission through blind review to open publication." }}</p>
+                <form class="uj-hero__search" action="{% url 'article_search' %}" method="get">
+                    <input type="text" name="q" placeholder="Search articles, authors, keywords…">
+                    <button class="btn btn-primary" type="submit"><i class="material-icons" style="font-size:18px;">search</i> Search</button>
+                </form>
             </div>
         </div>
-        {% endfor %}
     </div>
-    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-        <span class="visually-hidden">Previous</span>
-    </button>
-    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
-        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-        <span class="visually-hidden">Next</span>
-    </button>
-</div>
+</section>
 {% endif %}
 
 <div class="container">
-    <!-- Welcome Section -->
-    <div class="welcome-section text-center">
-        <h1 class="display-4">Welcome to {{ site_settings.site_title|default:"Jos Journal System" }}</h1>
-        <div class="row">
-            <div class="col-lg-8 mx-auto">
-                <p class="lead">{{ site_settings.site_description|default:"A platform for publishing and accessing academic journals." }}</p>
+    <!-- ============ BLIND REVIEW BAND ============ -->
+    <section class="uj-band mt-5">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-5">
+                <span class="uj-kicker">Editorial process</span>
+                <h2 class="mt-2 mb-0" style="font-size:32px; max-width:18ch;">Every manuscript is reviewed blind, before it's read at all.</h2>
+            </div>
+            <div class="col-lg-7">
+                <p class="mb-0" style="font-size:15.5px; line-height:1.7; color:var(--uj-text-2);">
+                    Reviewers see a manuscript only by its ID — never the author's name or affiliation.
+                    That anonymity holds through every round, from first read to final recommendation.
+                </p>
             </div>
         </div>
-    </div>
-    
-    <!-- Department Journals Section -->
-    <div class="mb-5">
-        <h2 class="section-heading">Department Journals</h2>
-        <div class="row">
+    </section>
+
+    <!-- ============ JOURNALS BY DEPARTMENT ============ -->
+    <section class="mt-5">
+        <div class="d-flex justify-content-between align-items-end mb-4">
+            <div>
+                <span class="uj-kicker">Explore</span>
+                <h2 class="mt-2 mb-0">Journals by department</h2>
+            </div>
+            <a href="{% url 'journal_list' %}" class="btn btn-outline-primary d-none d-sm-inline-flex">All journals</a>
+        </div>
+        <div class="row g-4">
             {% for department in departments %}
-            <div class="col-md-4 mb-4">
-                <div class="card department-journal-card h-100">
-                    {% if department.cover_image %}
-                    <img src="{{ department.cover_image.url }}" class="card-img" alt="{{ department.name }} Journal" style="height: 250px; object-fit: cover;">
-                    {% else %}
-                    <div class="bg-primary" style="height: 250px;">
-                        <div class="d-flex align-items-center justify-content-center h-100">
-                            <h1 class="text-white display-4 fw-bold">{{ department.code }}</h1>
-                        </div>
-                    </div>
-                    {% endif %}
-                    <div class="card-img-overlay">
-                        <h5 class="card-title">{{ department.get_journal_title }}</h5>
-                        <p class="card-text">{{ department.journal_description|truncatewords:10|default:"Academic journal from the Department of " }}{{ department.name }}</p>
-                        <a href="{% url 'department_journal' department.id %}" class="btn btn-sm">View Journal</a>
-                    </div>
-                </div>
-            </div>
-            {% empty %}
-            <div class="col-12">
-                <div class="alert alert-info d-flex align-items-center">
-                    <i class="material-icons me-2">info</i>
-                    No departments available yet.
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    
-    <!-- Latest Articles Section -->
-    <div class="mb-5">
-        <h2 class="section-heading">Latest Published Articles</h2>
-        <div class="row">
-            {% for article in latest_articles %}
-            <div class="col-md-4 mb-4">
-                <div class="card article-card h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <i class="material-icons text-primary me-2">article</i>
-                            <h5 class="card-title mb-0">{{ article.title }}</h5>
-                        </div>
-                        <h6 class="card-subtitle mb-3 text-muted d-flex align-items-center">
-                            <i class="material-icons me-1" style="font-size: 16px;">school</i>
-                            {{ article.department.get_journal_title }}
-                        </h6>
-                        <p class="card-text">{{ article.abstract|truncatewords:30|safe }}</p>
-                    </div>
-                    <div class="card-footer bg-transparent border-top-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted d-flex align-items-center">
-                                <i class="material-icons me-1" style="font-size: 14px;">calendar_today</i>
-                                {{ article.published_at|date:"M d, Y" }}
-                            </small>
-                            <a href="{% url 'article_detail' article.pk %}" class="btn btn-sm btn-primary">Read More</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% empty %}
-            <div class="col-12">
-                <div class="alert alert-info d-flex align-items-center">
-                    <i class="material-icons me-2">info</i>
-                    No published articles yet.
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        <div class="text-center mt-4">
-            <a href="{% url 'article_list' %}" class="btn btn-outline-primary">
-                <i class="material-icons me-1" style="font-size: 16px;">visibility</i>
-                View All Articles
-            </a>
-        </div>
-    </div>
-    
-    
-    <!-- Featured Archives Section -->
-    {% if featured_archives %}
-    <div class="mb-5">
-        <h2 class="section-heading">Featured Archives</h2>
-        <div class="row">
-            {% for archive in featured_archives %}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <i class="material-icons text-primary me-2">collections_bookmark</i>
-                            <h5 class="card-title mb-0">{{ archive.title }}</h5>
-                        </div>
-                        <h6 class="card-subtitle mb-3 text-muted d-flex align-items-center">
-                            <i class="material-icons me-1" style="font-size: 16px;">school</i>
-                            {{ archive.department.name }}
-                        </h6>
-                        <div class="mb-3">
-                            <span class="badge bg-secondary me-1">Vol. {{ archive.volume|default:"N/A" }}</span>
-                            <span class="badge bg-secondary">Issue {{ archive.issue|default:"N/A" }}</span>
-                            <span class="badge bg-primary ms-1">{{ archive.publication_date|date:"Y" }}</span>
-                        </div>
-                        {% if archive.description %}
-                        <p class="card-text">{{ archive.description|truncatewords:20 }}</p>
+            <div class="col-md-6 col-lg-4">
+                <a href="{% url 'department_journal' department.id %}" class="card card-hover uj-jcard">
+                    <div class="uj-jcard__media">
+                        {% if department.cover_image %}
+                        <img src="{{ department.cover_image.url }}" alt="{{ department.name }}">
+                        {% else %}
+                        <div class="uj-jcard__code">{{ department.code }}</div>
                         {% endif %}
                     </div>
-                    <div class="card-footer bg-transparent">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">{{ archive.publication_date|date:"M d, Y" }}</small>
-                            <div>
-                                <a href="{% url 'archived_journal_detail' archive.pk %}" class="btn btn-sm btn-outline-primary">
-                                    <i class="material-icons me-1" style="font-size: 14px;">visibility</i> View
-                                </a>
-                                <a href="{{ archive.document.url }}" class="btn btn-sm btn-primary" download>
-                                    <i class="material-icons me-1" style="font-size: 14px;">download</i> Download
-                                </a>
-                            </div>
+                    <div class="card-body d-flex flex-column">
+                        <span class="uj-kicker mb-1">{{ department.code }}</span>
+                        <h5 class="mb-2">{{ department.name }}</h5>
+                        <p class="text-muted mb-3" style="font-size:14px;">{% if department.description %}{{ department.description|truncatewords:16 }}{% else %}Peer-reviewed academic journal from the {{ department.name }}.{% endif %}</p>
+                        <span class="fw-semibold mt-auto d-inline-flex align-items-center gap-1" style="color:var(--uj-indigo-700); font-family:var(--uj-font-display); font-size:14px;">
+                            View journal <i class="material-icons" style="font-size:16px;">arrow_forward</i>
+                        </span>
+                    </div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info d-flex align-items-center"><i class="material-icons me-2">info</i> No departments available yet.</div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- ============ RECENTLY PUBLISHED ============ -->
+    <section class="mt-5">
+        <div class="d-flex justify-content-between align-items-end mb-4">
+            <div>
+                <span class="uj-kicker">Latest issue</span>
+                <h2 class="mt-2 mb-0">Recently published</h2>
+            </div>
+            <a href="{% url 'article_list' %}" class="btn btn-outline-primary d-none d-sm-inline-flex">All articles</a>
+        </div>
+        <div class="row g-4">
+            {% for article in latest_articles %}
+            <div class="col-md-6 col-lg-4">
+                <a href="{% url 'article_detail' article.pk %}" class="card card-hover h-100 text-decoration-none">
+                    <div class="card-body d-flex flex-column">
+                        {% if article.journal %}<span class="uj-kicker mb-2">{{ article.journal.name }}</span>{% endif %}
+                        <h5 class="mb-2" style="color:var(--uj-ink);">{{ article.title }}</h5>
+                        <p class="text-muted mb-3" style="font-size:14px;">{{ article.abstract|truncatewords:24|safe }}</p>
+                        <div class="d-flex align-items-center gap-2 mt-auto pt-2" style="font-size:12.5px; color:var(--uj-muted-2);">
+                            <i class="material-icons" style="font-size:15px;">event</i>
+                            {{ article.published_at|date:"M d, Y" }}
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info d-flex align-items-center"><i class="material-icons me-2">info</i> No published articles yet.</div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- ============ FEATURED ARCHIVES ============ -->
+    {% if featured_archives %}
+    <section class="mt-5">
+        <div class="d-flex justify-content-between align-items-end mb-4">
+            <div>
+                <span class="uj-kicker">From the archive</span>
+                <h2 class="mt-2 mb-0">Featured issues</h2>
+            </div>
+            <a href="{% url 'public_archived_journals' %}" class="btn btn-outline-primary d-none d-sm-inline-flex">Browse archive</a>
+        </div>
+        <div class="row g-4">
+            {% for archive in featured_archives %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card card-hover h-100">
+                    <div class="card-body d-flex flex-column">
+                        <span class="uj-kicker mb-2">{{ archive.department.name }}</span>
+                        <h5 class="mb-2">{{ archive.title }}</h5>
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <span class="uj-pill">Vol {{ archive.volume|default:"—" }}</span>
+                            <span class="uj-pill">Issue {{ archive.issue|default:"—" }}</span>
+                            <span class="uj-pill uj-pill--brand">{{ archive.publication_date|date:"Y" }}</span>
+                        </div>
+                        {% if archive.description %}<p class="text-muted mb-3" style="font-size:14px;">{{ archive.description|truncatewords:18 }}</p>{% endif %}
+                        <div class="d-flex gap-2 mt-auto pt-2">
+                            <a href="{% url 'archived_journal_detail' archive.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                            <a href="{{ archive.document.url }}" class="btn btn-primary btn-sm" download><i class="material-icons" style="font-size:15px;">download</i> PDF</a>
                         </div>
                     </div>
                 </div>
             </div>
             {% endfor %}
         </div>
-        <div class="text-center mt-4">
-            <a href="{% url 'public_archived_journals' %}" class="btn btn-outline-primary">
-                <i class="material-icons me-1" style="font-size: 16px;">collections_bookmark</i>
-                Browse All Archives
-            </a>
-        </div>
-    </div>
+    </section>
     {% endif %}
-    
-    <!-- Call to Action Section -->
-    <div class="cta-section text-center">
-        <div class="row">
-            <div class="col-lg-8 mx-auto">
-                <h3>Are you a researcher or academic?</h3>
-                <p class="lead">Submit your article for publication in your department's journal.</p>
-                {% if user.is_authenticated %}
-                    <a href="{% url 'article_create' %}" class="btn cta-btn btn-lg mt-3">
-                        <i class="material-icons me-1" style="font-size: 18px;">add_circle</i>
-                        Submit Your Article
-                    </a>
-                {% else %}
-                    <div class="mt-4">
-                        <a href="{% url 'register' %}" class="btn cta-btn btn-lg me-3">
-                            <i class="material-icons me-1" style="font-size: 18px;">person_add</i>
-                            Register
-                        </a>
-                        <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">
-                            <i class="material-icons me-1" style="font-size: 18px;">login</i>
-                            Login
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
+
+    <!-- ============ CTA ============ -->
+    <section class="uj-cta mt-5 mb-5">
+        <div class="col-lg-8 mx-auto">
+            <span class="uj-pill uj-pill--ghost mb-3"><i class="material-icons" style="font-size:15px;">edit_note</i> For researchers &amp; academics</span>
+            <h2 class="text-white mb-2">Are you a researcher or academic?</h2>
+            <p class="mb-4" style="color:rgba(255,255,255,0.88); font-size:16px;">Submit your manuscript for peer review in your department's journal.</p>
+            {% if user.is_authenticated %}
+                <a href="{% url 'submission_create' %}" class="btn btn-white btn-lg">
+                    <i class="material-icons" style="font-size:18px;">upload</i> Submit manuscript
+                </a>
+            {% else %}
+                <div class="d-flex flex-wrap gap-2 justify-content-center">
+                    <a href="{% url 'register' %}" class="btn btn-white btn-lg"><i class="material-icons" style="font-size:18px;">upload</i> Submit manuscript</a>
+                    <a href="{% url 'register' %}" class="btn btn-ghost btn-lg">Create an account</a>
+                </div>
+            {% endif %}
         </div>
-    </div>
+    </section>
 </div>
 {% endblock %}

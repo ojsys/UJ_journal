@@ -1,0 +1,135 @@
+{% extends 'journalapp/base.html' %}
+{% load humanize %}
+
+{% block title %}Reviewer dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Multi-role switcher -->
+    {% if user.profile.is_editor %}
+    <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span><i class="material-icons align-middle me-1" style="font-size:18px;">info</i> You also have editor privileges.</span>
+        <a href="{% url 'editor_dashboard' %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">swap_horiz</i> Switch to editor dashboard</a>
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="uj-kicker">Reviewer dashboard</span>
+            <h1 class="mt-1 mb-1" style="font-size:30px;">Welcome, {{ user.get_full_name|default:user.email }}</h1>
+            <p class="text-muted mb-0">Review manuscripts and provide your expert, anonymous feedback.</p>
+        </div>
+        <a href="{% url 'my_assignments' %}" class="btn btn-primary btn-lg"><i class="material-icons" style="font-size:18px;">assignment</i> View assignments</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3"><div class="uj-stat h-100"><div class="uj-stat__value" style="color:var(--uj-info-fg);">{{ assignment_stats.active }}</div><div class="uj-stat__label">Active assignments</div></div></div>
+        <div class="col-6 col-lg-3"><div class="uj-stat h-100"><div class="uj-stat__value" style="color:var(--uj-success-fg);">{{ assignment_stats.completed }}</div><div class="uj-stat__label">Completed</div></div></div>
+        <div class="col-6 col-lg-3"><div class="uj-stat h-100"><div class="uj-stat__value">{{ assignment_stats.total }}</div><div class="uj-stat__label">Total reviews</div></div></div>
+        <div class="col-6 col-lg-3"><div class="uj-stat h-100"><div class="uj-stat__value" style="color:var(--uj-warn-fg);">{{ unread_messages }}</div><div class="uj-stat__label">Unread messages</div></div></div>
+    </div>
+
+    <!-- Active assignments -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Active assignments</span>
+            <a href="{% url 'my_assignments' %}" class="btn btn-outline-primary btn-sm">View all</a>
+        </div>
+        <div class="card-body">
+            {% if active_assignments %}
+            <div class="row g-3">
+                {% for assignment in active_assignments %}
+                <div class="col-md-6">
+                    <div class="uj-panel h-100 p-3 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            {% if assignment.blinded %}
+                            <span class="uj-msid">{{ assignment.submission.anonymized_identifier }}</span>
+                            {% else %}
+                            <span class="uj-pill"><i class="material-icons" style="font-size:14px;">person</i> {{ assignment.submission.author.get_full_name|default:assignment.submission.author.email }}</span>
+                            {% endif %}
+                            <span class="uj-pill uj-pill--brand">{{ assignment.get_role_display }}</span>
+                        </div>
+                        <h6 class="mb-2">{% if assignment.blinded %}Manuscript under review{% else %}{{ assignment.submission.title|truncatewords:10 }}{% endif %}</h6>
+                        <div class="d-flex flex-column gap-1 mb-3" style="font-size:13px; color:var(--uj-muted-2);">
+                            <span><i class="material-icons align-middle" style="font-size:15px;">menu_book</i> {{ assignment.submission.journal.name }}</span>
+                            <span><i class="material-icons align-middle" style="font-size:15px;">event</i> Assigned {{ assignment.assigned_at|naturaltime }}</span>
+                        </div>
+                        {% if assignment.notes %}<div class="alert alert-info py-2 px-3 mb-3" style="font-size:13px;"><strong>Notes:</strong> {{ assignment.notes|truncatewords:15 }}</div>{% endif %}
+                        <a href="{% url 'work_on_submission' assignment.submission.pk %}" class="btn btn-primary btn-sm mt-auto align-self-start"><i class="material-icons" style="font-size:15px;">rate_review</i> Start review</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <span class="uj-brand-mark mx-auto mb-3" style="width:56px;height:56px;border-radius:16px;"><i class="material-icons">inbox</i></span>
+                <h5>No active assignments</h5>
+                <p class="text-muted mb-0">You don't have any manuscripts to review right now.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent messages -->
+    {% if recent_messages %}
+    <div class="card mb-4">
+        <div class="card-header">Recent messages</div>
+        <div class="card-body d-grid gap-3">
+            {% for message in recent_messages %}
+            <div style="border-left:3px solid var(--uj-indigo); padding-left:1rem;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong style="font-size:14px;">{{ message.sender.get_full_name|default:message.sender.email }}</strong>
+                    <small class="text-muted">{{ message.created_at|naturaltime }}</small>
+                </div>
+                <p class="mb-1" style="font-size:14px;">{{ message.content|truncatewords:20 }}</p>
+                <small class="text-muted">Re: {{ message.submission.anonymized_identifier }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Completed reviews -->
+    {% if completed_assignments %}
+    <div class="card mb-4">
+        <div class="card-header">Recent completed reviews</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="ps-4">Manuscript</th><th>Recommendation</th><th>Completed</th></tr></thead>
+                    <tbody>
+                        {% for assignment in completed_assignments %}
+                        <tr>
+                            <td class="ps-4"><span class="uj-msid">{{ assignment.submission.anonymized_identifier }}</span></td>
+                            <td>
+                                {% if assignment.recommendation == 'approve' %}<span class="uj-pill uj-pill--success">Approve</span>
+                                {% elif assignment.recommendation == 'minor_revision' %}<span class="uj-pill uj-pill--warn">Minor revision</span>
+                                {% elif assignment.recommendation == 'major_revision' %}<span class="uj-pill uj-pill--warn">Major revision</span>
+                                {% elif assignment.recommendation == 'reject' %}<span class="uj-pill uj-pill--danger">Reject</span>
+                                {% else %}<span class="uj-pill">—</span>{% endif %}
+                            </td>
+                            <td style="font-size:13px; color:var(--uj-muted-2);">{{ assignment.completed_at|naturaltime }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Guidelines -->
+    <div class="uj-band">
+        <span class="uj-kicker">Review guidelines</span>
+        <h5 class="mt-2 mb-4">How to review</h5>
+        <div class="row g-3">
+            <div class="col-6 col-lg-3"><div class="d-flex align-items-center gap-2 mb-2"><span class="uj-brand-mark">1</span><strong style="font-size:14px;">Read</strong></div><p class="text-muted mb-0" style="font-size:13px;">Download and read the manuscript.</p></div>
+            <div class="col-6 col-lg-3"><div class="d-flex align-items-center gap-2 mb-2"><span class="uj-brand-mark">2</span><strong style="font-size:14px;">Evaluate</strong></div><p class="text-muted mb-0" style="font-size:13px;">Assess quality and originality.</p></div>
+            <div class="col-6 col-lg-3"><div class="d-flex align-items-center gap-2 mb-2"><span class="uj-brand-mark">3</span><strong style="font-size:14px;">Feedback</strong></div><p class="text-muted mb-0" style="font-size:13px;">Provide constructive comments.</p></div>
+            <div class="col-6 col-lg-3"><div class="d-flex align-items-center gap-2 mb-2"><span class="uj-brand-mark">4</span><strong style="font-size:14px;">Recommend</strong></div><p class="text-muted mb-0" style="font-size:13px;">Submit your recommendation.</p></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

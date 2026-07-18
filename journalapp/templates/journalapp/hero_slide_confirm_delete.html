@@ -1,26 +1,23 @@
 {% extends 'journalapp/base.html' %}
 
+{% block title %}Delete hero slide{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-6 offset-md-3">
-            <div class="card">
-                <div class="card-header bg-danger text-white">
-                    <h4 class="mb-0">Delete Hero Slide</h4>
-                </div>
-                <div class="card-body text-center">
-                    <img src="{{ slide.image.url }}" alt="{{ slide.title }}" class="img-fluid mb-3" style="max-height: 200px;">
-                    <h5>Are you sure you want to delete "{{ slide.title }}"?</h5>
-                    <p class="text-muted">This action cannot be undone.</p>
-                    
-                    <form method="POST">
-                        {% csrf_token %}
-                        <a href="{% url 'hero_slides' %}" class="btn btn-secondary me-2">Cancel</a>
-                        <button type="submit" class="btn btn-danger">Delete</button>
-                    </form>
-                </div>
+<div class="container py-4">
+    <div class="row justify-content-center"><div class="col-lg-6">
+        <div class="card">
+            <div class="card-body p-4 p-md-5 text-center">
+                <span class="mx-auto mb-3" style="width:48px;height:48px;border-radius:14px;background:var(--uj-danger-bg);color:var(--uj-rose);display:flex;align-items:center;justify-content:center;"><i class="material-icons">delete</i></span>
+                <img src="{{ slide.image.url }}" alt="{{ slide.title }}" class="img-fluid rounded mb-3" style="max-height:200px;">
+                <h4 class="mb-1" style="font-size:20px;">Delete "{{ slide.title }}"?</h4>
+                <p class="text-muted mb-4">This action cannot be undone.</p>
+                <form method="POST" class="d-flex gap-2 justify-content-center">
+                    {% csrf_token %}
+                    <a href="{% url 'hero_slides' %}" class="btn btn-light">Cancel</a>
+                    <button type="submit" class="btn btn-danger"><i class="material-icons" style="font-size:16px;">delete</i> Delete</button>
+                </form>
             </div>
         </div>
-    </div>
+    </div></div>
 </div>
 {% endblock %}

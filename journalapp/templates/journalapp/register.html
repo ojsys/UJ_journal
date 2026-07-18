@@ -1,206 +1,114 @@
 {% extends 'journalapp/base.html' %}
 
-{% block title %}Register{% endblock %}
+{% block title %}Create an account{% endblock %}
 
 {% block extra_css %}
 <style>
-    .auth-container {
-        max-width: 500px;
-        margin: 3rem auto;
+    .auth-wrap { max-width: 500px; margin: 4rem auto; }
+    .auth-mark {
+        width: 46px; height: 46px; border-radius: 12px; background: var(--uj-grad-pink);
+        display: flex; align-items: center; justify-content: center; color: #fff; margin-bottom: 1.25rem;
     }
-    
-    .auth-card {
-        border-radius: 8px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        overflow: hidden;
+    .auth-input-wrap { position: relative; }
+    .auth-input-wrap .input-icon {
+        position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+        color: var(--uj-faint); font-size: 19px;
     }
-    
-    .auth-header {
-        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
-        color: white;
-        padding: 2rem;
-        text-align: center;
-    }
-    
-    .auth-header h2 {
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-    }
-    
-    .auth-body {
-        padding: 2rem;
-    }
-    
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-    
-    .form-control {
-        padding: 0.75rem 1rem;
-    }
-    
-    .form-control:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25);
-    }
-    
-    .btn-auth {
-        background-color: var(--primary-color);
-        border: none;
-        padding: 0.75rem 1rem;
-        font-weight: 600;
-        width: 100%;
-    }
-    
-    .auth-footer {
-        text-align: center;
-        padding: 1rem;
-        border-top: 1px solid #eee;
-    }
-    
-    .input-icon-wrapper {
-        position: relative;
-    }
-    
-    .input-icon {
-        position: absolute;
-        left: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #6c757d;
-    }
-    
-    .input-with-icon {
-        padding-left: 2.5rem;
-    }
-    
+    .auth-input-wrap .form-control, .auth-input-wrap .form-select { padding-left: 42px; }
     .password-toggle {
-        position: absolute;
-        right: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        cursor: pointer;
-        color: #6c757d;
+        position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+        cursor: pointer; color: var(--uj-faint); font-size: 19px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="auth-container">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h2>Create an Account</h2>
-                <p>Join the University of Jos Journal System</p>
+    <div class="auth-wrap">
+        <div class="uj-panel p-4 p-md-5">
+            <div class="auth-mark"><i class="material-icons">person_add</i></div>
+            <h2 class="mb-1">Create an account</h2>
+            <p class="text-muted mb-4" style="font-size:14.5px;">For authors and reviewers affiliated with the University of Jos.</p>
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
             </div>
-            <div class="auth-body">
-                {% if messages %}
-                <div class="alert alert-danger">
-                    {% for message in messages %}
-                    <p {% if message.tags %}class="{{ message.tags }}"{% endif %}>{{ message }}</p>
-                    {% endfor %}
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="id_first_name">First name</label>
+                        <div class="auth-input-wrap">
+                            <i class="material-icons input-icon">person</i>
+                            <input type="text" name="first_name" id="id_first_name" class="form-control {% if form.first_name.errors %}is-invalid{% endif %}" placeholder="First name" value="{{ form.first_name.value|default:'' }}">
+                            {% if form.first_name.errors %}<div class="invalid-feedback">{{ form.first_name.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="id_last_name">Last name</label>
+                        <div class="auth-input-wrap">
+                            <i class="material-icons input-icon">person</i>
+                            <input type="text" name="last_name" id="id_last_name" class="form-control {% if form.last_name.errors %}is-invalid{% endif %}" placeholder="Last name" value="{{ form.last_name.value|default:'' }}">
+                            {% if form.last_name.errors %}<div class="invalid-feedback">{{ form.last_name.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
                 </div>
-                {% endif %}
-                
-                <form method="post" novalidate>
-                    {% csrf_token %}
-                    
-                    <div class="form-group">
-                        <label for="id_first_name">First Name</label>
-                        <div class="input-icon-wrapper">
-                            <i class="material-icons input-icon">person</i>
-                            <input type="text" name="first_name" id="id_first_name" class="form-control input-with-icon {% if form.first_name.errors %}is-invalid{% endif %}" placeholder="Enter your first name" value="{{ form.first_name.value|default:'' }}">
-                        </div>
-                        {% if form.first_name.errors %}
-                        <div class="invalid-feedback">
-                            {{ form.first_name.errors.0 }}
-                        </div>
-                        {% endif %}
+
+                <div class="mt-3">
+                    <label class="form-label" for="id_email">Email address</label>
+                    <div class="auth-input-wrap">
+                        <i class="material-icons input-icon">email</i>
+                        <input type="email" name="email" id="id_email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" placeholder="you@unijos.edu.ng" value="{{ form.email.value|default:'' }}">
+                        {% if form.email.errors %}<div class="invalid-feedback">{{ form.email.errors.0 }}</div>{% endif %}
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="id_last_name">Last Name</label>
-                        <div class="input-icon-wrapper">
-                            <i class="material-icons input-icon">person</i>
-                            <input type="text" name="last_name" id="id_last_name" class="form-control input-with-icon {% if form.last_name.errors %}is-invalid{% endif %}" placeholder="Enter your last name" value="{{ form.last_name.value|default:'' }}">
-                        </div>
-                        {% if form.last_name.errors %}
-                        <div class="invalid-feedback">
-                            {{ form.last_name.errors.0 }}
-                        </div>
-                        {% endif %}
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label" for="id_department">Department</label>
+                    <div class="auth-input-wrap">
+                        <i class="material-icons input-icon">school</i>
+                        <select name="department" id="id_department" class="form-select {% if form.department.errors %}is-invalid{% endif %}">
+                            <option value="">Select your department</option>
+                            {% for department in departments %}
+                            <option value="{{ department.id }}" {% if form.department.value|stringformat:'s' == department.id|stringformat:'s' %}selected{% endif %}>{{ department.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.department.errors %}<div class="invalid-feedback">{{ form.department.errors.0 }}</div>{% endif %}
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="id_email">Email Address</label>
-                        <div class="input-icon-wrapper">
-                            <i class="material-icons input-icon">email</i>
-                            <input type="email" name="email" id="id_email" class="form-control input-with-icon {% if form.email.errors %}is-invalid{% endif %}" placeholder="Enter your email address" value="{{ form.email.value|default:'' }}">
-                        </div>
-                        {% if form.email.errors %}
-                        <div class="invalid-feedback">
-                            {{ form.email.errors.0 }}
-                        </div>
-                        {% endif %}
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label" for="id_password1">Password</label>
+                    <div class="auth-input-wrap">
+                        <i class="material-icons input-icon">lock</i>
+                        <input type="password" name="password1" id="id_password1" class="form-control {% if form.password1.errors %}is-invalid{% endif %}" placeholder="Create a password">
+                        <i class="material-icons password-toggle" onclick="togglePassword('id_password1')">visibility_off</i>
+                        {% if form.password1.errors %}<div class="invalid-feedback">{{ form.password1.errors.0 }}</div>{% endif %}
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="id_department">Department</label>
-                        <div class="input-icon-wrapper">
-                            <i class="material-icons input-icon">school</i>
-                            <select name="department" id="id_department" class="form-select input-with-icon {% if form.department.errors %}is-invalid{% endif %}">
-                                <option value="">Select your department</option>
-                                {% for department in departments %}
-                                <option value="{{ department.id }}" {% if form.department.value|stringformat:'s' == department.id|stringformat:'s' %}selected{% endif %}>{{ department.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        {% if form.department.errors %}
-                        <div class="invalid-feedback">
-                            {{ form.department.errors.0 }}
-                        </div>
-                        {% endif %}
+                    <small class="text-muted" style="font-size:12.5px;">At least 8 characters, with letters and numbers.</small>
+                </div>
+
+                <div class="mt-3 mb-4">
+                    <label class="form-label" for="id_password2">Confirm password</label>
+                    <div class="auth-input-wrap">
+                        <i class="material-icons input-icon">lock</i>
+                        <input type="password" name="password2" id="id_password2" class="form-control {% if form.password2.errors %}is-invalid{% endif %}" placeholder="Confirm your password">
+                        <i class="material-icons password-toggle" onclick="togglePassword('id_password2')">visibility_off</i>
+                        {% if form.password2.errors %}<div class="invalid-feedback">{{ form.password2.errors.0 }}</div>{% endif %}
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="id_password1">Password</label>
-                        <div class="input-icon-wrapper">
-                            <i class="material-icons input-icon">lock</i>
-                            <input type="password" name="password1" id="id_password1" class="form-control input-with-icon {% if form.password1.errors %}is-invalid{% endif %}" placeholder="Create a password">
-                            <i class="material-icons password-toggle" onclick="togglePassword('id_password1')">visibility_off</i>
-                        </div>
-                        {% if form.password1.errors %}
-                        <div class="invalid-feedback">
-                            {{ form.password1.errors.0 }}
-                        </div>
-                        {% endif %}
-                        <small class="form-text text-muted">
-                            Your password must be at least 8 characters long and contain letters and numbers.
-                        </small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="id_password2">Confirm Password</label>
-                        <div class="input-icon-wrapper">
-                            <i class="material-icons input-icon">lock</i>
-                            <input type="password" name="password2" id="id_password2" class="form-control input-with-icon {% if form.password2.errors %}is-invalid{% endif %}" placeholder="Confirm your password">
-                            <i class="material-icons password-toggle" onclick="togglePassword('id_password2')">visibility_off</i>
-                        </div>
-                        {% if form.password2.errors %}
-                        <div class="invalid-feedback">
-                            {{ form.password2.errors.0 }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary btn-auth">
-                        <i class="material-icons me-1" style="font-size: 16px;">person_add</i> Register
-                    </button>
-                </form>
-            </div>
-            <div class="auth-footer">
-                Already have an account? <a href="{% url 'login' %}">Login here</a>
-            </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 justify-content-center">Create account</button>
+            </form>
+
+            <hr class="uj-divider my-4">
+            <p class="text-center mb-0" style="font-size:14px;">
+                Already have an account? <a href="{% url 'login' %}" class="fw-semibold">Log in</a>
+            </p>
         </div>
     </div>
 </div>
@@ -208,15 +116,9 @@
 <script>
     function togglePassword(inputId) {
         const input = document.getElementById(inputId);
-        const icon = input.nextElementSibling;
-        
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.textContent = 'visibility';
-        } else {
-            input.type = 'password';
-            icon.textContent = 'visibility_off';
-        }
+        const icon = input.parentElement.querySelector('.password-toggle');
+        if (input.type === 'password') { input.type = 'text'; icon.textContent = 'visibility'; }
+        else { input.type = 'password'; icon.textContent = 'visibility_off'; }
     }
 </script>
 {% endblock %}

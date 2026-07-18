@@ -1,0 +1,69 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="uj-kicker">Admin</span>
+            <h1 class="mt-1 mb-0" style="font-size:30px;">{{ title }}</h1>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'add_guest_reviewer' %}" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">person_add</i> Add guest reviewer</a>
+            <a href="{% url 'bulk_add_guest_reviewers' %}" class="btn btn-outline-primary"><i class="material-icons" style="font-size:17px;">upload_file</i> Bulk add</a>
+        </div>
+    </div>
+
+    <div class="card mb-4"><div class="card-body">
+        <form method="get" class="row g-2">
+            <div class="col-md-6"><input type="text" name="search" class="form-control" placeholder="Search by name, email, or affiliation…" value="{{ search_query }}"></div>
+            <div class="col-md-3"><select name="status" class="form-select">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All status</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active only</option>
+                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive only</option>
+            </select></div>
+            <div class="col-md-3"><button type="submit" class="btn btn-primary w-100 justify-content-center"><i class="material-icons" style="font-size:17px;">search</i> Search</button></div>
+        </form>
+    </div></div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center"><span>Guest reviewers</span><span class="uj-pill uj-pill--brand">{{ guest_reviewers.count }}</span></div>
+        <div class="card-body p-0">
+            {% if guest_reviewers %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="ps-4">Name</th><th>Email</th><th>Affiliation</th><th>Expertise</th><th>Created</th><th>Status</th><th class="text-end pe-4">Actions</th></tr></thead>
+                    <tbody>
+                        {% for guest in guest_reviewers %}
+                        <tr>
+                            <td class="ps-4 fw-semibold" style="color:var(--uj-ink);">{{ guest.get_full_name }}</td>
+                            <td style="font-size:14px;">{{ guest.email }}</td>
+                            <td style="font-size:14px;">{{ guest.affiliation|default:"—" }}</td>
+                            <td><small class="text-muted">{{ guest.expertise_areas|truncatewords:5|default:"Not specified" }}</small></td>
+                            <td style="font-size:13px;">{{ guest.created_at|date:"M d, Y" }}</td>
+                            <td>
+                                {% if guest.is_active %}<span class="uj-pill uj-pill--success">Active</span>{% else %}<span class="uj-pill">Inactive</span>{% endif %}
+                                {% if guest.is_token_valid %}<span class="uj-pill uj-pill--info">Valid</span>{% else %}<span class="uj-pill uj-pill--warn">Expired</span>{% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <a href="{% url 'edit_guest_reviewer' guest.pk %}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="material-icons" style="font-size:15px;">edit</i></a>
+                                <a href="{% url 'resend_guest_invitation' guest.pk %}" class="btn btn-light btn-sm" title="Resend invitation" onclick="return confirm('Resend invitation to {{ guest.get_full_name }}?')"><i class="material-icons" style="font-size:15px;">email</i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <span class="uj-brand-mark mx-auto mb-3" style="width:56px;height:56px;border-radius:16px;"><i class="material-icons">person_off</i></span>
+                <h5>No guest reviewers found</h5>
+                <p class="text-muted">{% if search_query %}No results match your search.{% else %}Start by adding your first guest reviewer.{% endif %}</p>
+                <a href="{% url 'add_guest_reviewer' %}" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">person_add</i> Add guest reviewer</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

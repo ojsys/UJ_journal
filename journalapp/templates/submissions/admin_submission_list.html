@@ -1,0 +1,99 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Manage submissions{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="mb-4">
+        <span class="uj-kicker">Admin</span>
+        <h1 class="mt-1 mb-0" style="font-size:30px;">Manage submissions</h1>
+    </div>
+
+    <!-- Status summary cards -->
+    <div class="row g-3 mb-4">
+        {% for status_key, details in status_details.items %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>{{ details.label }}</span>
+                    <span class="uj-pill uj-pill--brand">{{ details.count }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if details.submissions %}
+                    <div class="d-grid">
+                        {% for sub in details.submissions %}
+                        <a href="{% url 'admin_submission_detail' sub.pk %}" class="text-decoration-none p-3" style="border-bottom:1px solid var(--uj-border-2);">
+                            <div class="d-flex justify-content-between gap-2">
+                                <span class="fw-semibold text-truncate" style="color:var(--uj-ink); max-width:75%;">{{ sub.title|truncatewords:6|default:"Untitled" }}</span>
+                                <span class="uj-msid">{{ sub.anonymized_identifier }}</span>
+                            </div>
+                            <small class="text-muted d-block mt-1">{{ sub.author.get_full_name|default:sub.author.email }} · {{ sub.journal.name }}</small>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% if details.count > 5 %}<div class="card-footer text-center"><a href="?status={{ status_key }}" class="btn btn-outline-primary btn-sm">View all {{ details.count }} →</a></div>{% endif %}
+                    {% else %}
+                    <div class="p-4 text-center text-muted"><small>No submissions</small></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2">
+                <div class="col-md-3"><input type="text" name="q" class="form-control" placeholder="Search…" value="{{ search_query|default:'' }}"></div>
+                <div class="col-md-3"><select name="status" class="form-select"><option value="">All statuses</option>{% for value, label in status_choices %}<option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                <div class="col-md-3"><select name="journal" class="form-select"><option value="">All journals</option>{% for journal in journals %}<option value="{{ journal.id }}" {% if journal_filter == journal.id|stringformat:"s" %}selected{% endif %}>{{ journal.name }}</option>{% endfor %}</select></div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">search</i> Filter</button>
+                    <a href="{% url 'admin_submission_list' %}" class="btn btn-light">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if submissions %}
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="ps-4">Manuscript</th><th>Author</th><th>Journal</th><th>Status</th><th>Submitted</th><th class="text-end pe-4">Actions</th></tr></thead>
+                    <tbody>
+                        {% for submission in submissions %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-semibold" style="color:var(--uj-ink);">{{ submission.title|truncatewords:8|default:"Untitled" }}</div>
+                                <div class="uj-msid mt-1">{{ submission.anonymized_identifier }}</div>
+                            </td>
+                            <td style="font-size:14px;">{{ submission.author.get_full_name|default:submission.author.email }}</td>
+                            <td style="font-size:14px;">{{ submission.journal.name }}</td>
+                            <td>{% include 'journalapp/partials/_submission_status.html' with status=submission.status %}</td>
+                            <td style="font-size:13px; color:var(--uj-muted-2);">{{ submission.submitted_at|date:"M d, Y" }}</td>
+                            <td class="text-end pe-4"><a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-primary btn-sm"><i class="material-icons" style="font-size:15px;">settings</i> Manage</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if submissions.has_other_pages %}
+    <nav class="mt-4"><ul class="pagination justify-content-center">
+        {% if submissions.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ submissions.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if journal_filter %}&journal={{ journal_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">Previous</a></li>{% endif %}
+        {% for num in submissions.paginator.page_range %}
+            {% if submissions.number == num %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > submissions.number|add:'-3' and num < submissions.number|add:'3' %}<li class="page-item"><a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if journal_filter %}&journal={{ journal_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">{{ num }}</a></li>{% endif %}
+        {% endfor %}
+        {% if submissions.has_next %}<li class="page-item"><a class="page-link" href="?page={{ submissions.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if journal_filter %}&journal={{ journal_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}">Next</a></li>{% endif %}
+    </ul></nav>
+    {% endif %}
+    {% else %}
+    <div class="alert alert-info"><i class="material-icons align-middle me-1" style="font-size:18px;">info</i> No submissions found matching your criteria.</div>
+    {% endif %}
+</div>
+{% endblock %}

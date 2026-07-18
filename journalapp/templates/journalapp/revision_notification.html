@@ -49,7 +49,7 @@
         <h1>Revision Required</h1>
     </div>
     <div class="content">
-        <p>Dear {{ user.first_name|default:user.username }},</p>
+        <p>Dear {{ user.first_name|default:user.email }},</p>
         
         <p>Your article <strong>"{{ article.title }}"</strong> requires revision before it can proceed in the publication process.</p>
         

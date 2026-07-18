@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Feedback Available</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3498db 0%, #1a5276 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .content {
+            padding: 30px;
+            background-color: #ffffff;
+        }
+
+        .highlight-box {
+            background-color: #e8f4fc;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .submission-details {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .submission-details h3 {
+            margin-top: 0;
+            color: #3498db;
+            font-size: 16px;
+        }
+
+        .submission-details p {
+            margin: 5px 0;
+        }
+
+        .feedback-section {
+            margin: 20px 0;
+        }
+
+        .feedback-item {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 3px solid #6c757d;
+        }
+
+        .feedback-item h4 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .recommendation {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .rec-approve { background-color: #d4edda; color: #155724; }
+        .rec-minor { background-color: #fff3cd; color: #856404; }
+        .rec-major { background-color: #ffe5d0; color: #e67e22; }
+        .rec-reject { background-color: #f8d7da; color: #721c24; }
+
+        .feedback-text {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 16px;
+        }
+
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .signature {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .note {
+            font-size: 12px;
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Review Feedback Available</h1>
+        </div>
+
+        <div class="content">
+            <p>Dear {{ author.first_name|default:author.email }},</p>
+
+            <div class="highlight-box">
+                <p>The review process for your submission has been completed. Please find the feedback summary below.</p>
+            </div>
+
+            <div class="submission-details">
+                <h3>Submission Details</h3>
+                <p><strong>Title:</strong> {{ submission.title }}</p>
+                <p><strong>Journal:</strong> {{ submission.journal.name }}</p>
+            </div>
+
+            <div class="feedback-section">
+                <h3>Reviewer Feedback</h3>
+
+                {% for feedback in feedback_summary %}
+                <div class="feedback-item">
+                    <h4>Reviewer {{ forloop.counter }}</h4>
+                    <p>
+                        <strong>Recommendation:</strong>
+                        {% if feedback.recommendation == 'Approve' %}
+                            <span class="recommendation rec-approve">{{ feedback.recommendation }}</span>
+                        {% elif 'Minor' in feedback.recommendation %}
+                            <span class="recommendation rec-minor">{{ feedback.recommendation }}</span>
+                        {% elif 'Major' in feedback.recommendation %}
+                            <span class="recommendation rec-major">{{ feedback.recommendation }}</span>
+                        {% elif feedback.recommendation == 'Reject' %}
+                            <span class="recommendation rec-reject">{{ feedback.recommendation }}</span>
+                        {% else %}
+                            <span class="recommendation">{{ feedback.recommendation }}</span>
+                        {% endif %}
+                    </p>
+                    <div class="feedback-text">
+                        {{ feedback.feedback }}
+                    </div>
+                    {% if feedback.has_amended_doc %}
+                    <p class="note">* An amended document is available for download in your submission portal.</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="button-container">
+                <a href="{{ submission_url }}" class="button">View Full Submission Details</a>
+            </div>
+
+            <p>Please review the feedback carefully. If revisions are required, you can submit your revised document through your submission portal.</p>
+
+            <p>If you have any questions about the feedback, please contact our editorial team.</p>
+
+            <div class="signature">
+                <p>Best regards,<br>
+                <strong>{{ site_name }} Editorial Team</strong></p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>&copy; {% now "Y" %} {{ site_name }}. All rights reserved.</p>
+            <p>This email was sent to {{ author.email }}</p>
+        </div>
+    </div>
+</body>
+</html>

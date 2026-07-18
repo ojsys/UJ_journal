@@ -1,0 +1,144 @@
+{% extends 'journalapp/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Review: {{ submission.anonymized_identifier }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-bubble { border-radius: 14px; padding: 10px 14px; max-width: 72%; font-size: 14px; }
+    .chat-mine { background: var(--uj-grad); color: #fff; }
+    .chat-theirs { background: var(--uj-surface-2); color: var(--uj-ink); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'my_assignments' %}" class="uj-nav-link d-inline-flex align-items-center gap-1 mb-3 px-0" style="background:none;">
+        <i class="material-icons" style="font-size:18px;">arrow_back</i> Back to assignments
+    </a>
+
+    <div class="row g-4">
+        <!-- Main -->
+        <div class="col-lg-8">
+            <!-- Submission info -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                        <div>
+                            {% if assignment.blinded %}
+                            <span class="uj-msid mb-2">{{ submission.anonymized_identifier }}</span>
+                            <div class="uj-pill uj-pill--brand mt-2"><i class="material-icons" style="font-size:14px;">visibility_off</i> Blind review — author hidden</div>
+                            {% else %}
+                            <span class="uj-pill"><i class="material-icons" style="font-size:14px;">person</i> {{ submission.author.get_full_name|default:submission.author.email }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="uj-pill uj-pill--info">{{ submission.journal.name }}</span>
+                    </div>
+                    <h4 class="mb-2">{{ submission.title|default:"Manuscript under review" }}</h4>
+                    <small class="text-muted">Submitted {{ submission.submitted_at|date:"F d, Y" }}</small>
+                    {% if submission.cover_letter %}
+                    <div class="mt-3">
+                        <span class="uj-kicker">Cover letter</span>
+                        <p class="uj-panel p-3 mt-2 mb-0" style="box-shadow:none; font-size:14px;">{{ submission.cover_letter }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Document versions -->
+            <div class="card mb-4">
+                <div class="card-header">Document versions</div>
+                <div class="card-body p-0">
+                    {% if versions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead><tr><th class="ps-4">Version</th><th>Date</th><th>Notes</th><th class="text-end pe-4">Download</th></tr></thead>
+                            <tbody>
+                                {% for version in versions %}
+                                <tr>
+                                    <td class="ps-4 fw-semibold">V{{ version.version_number }}</td>
+                                    <td style="font-size:13px;">{{ version.uploaded_at|date:"M d, Y" }}</td>
+                                    <td style="font-size:13px;" class="text-muted">{{ version.notes|truncatewords:8|default:"—" }}</td>
+                                    <td class="text-end pe-4"><a href="{% url 'download_document' version.pk %}" class="btn btn-primary btn-sm"><i class="material-icons" style="font-size:15px;">download</i></a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}<p class="text-muted p-4 mb-0">No document versions available.</p>{% endif %}
+                </div>
+            </div>
+
+            <!-- Chat -->
+            <div class="card mb-4">
+                <div class="card-header">Messages with admin</div>
+                <div class="card-body">
+                    <div id="chat-messages" style="max-height:320px; overflow-y:auto;" class="d-grid gap-2 mb-3">
+                        {% for message in messages %}
+                        <div class="d-flex {% if message.sender == request.user %}justify-content-end{% endif %}">
+                            <div class="chat-bubble {% if message.sender == request.user %}chat-mine{% else %}chat-theirs{% endif %}">
+                                <small class="fw-bold d-block mb-1">
+                                    {% if assignment.blinded and message.sender == submission.author %}{{ submission.anonymized_identifier }}{% else %}{{ message.sender.get_full_name|default:message.sender.email }}{% endif %}
+                                </small>
+                                <p class="mb-1">{{ message.content }}</p>
+                                {% if message.attachment %}<a href="{{ message.attachment.url }}" target="_blank" class="{% if message.sender == request.user %}text-white{% endif %}" style="font-size:13px;"><i class="material-icons align-middle" style="font-size:14px;">attach_file</i> Attachment</a>{% endif %}
+                                <small class="d-block {% if message.sender == request.user %}text-white-50{% else %}text-muted{% endif %}" style="font-size:11px;">{{ message.created_at|date:"M d, H:i" }}</small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center mb-0">No messages yet. Start a conversation with the admin.</p>
+                        {% endfor %}
+                    </div>
+                    <form method="post" action="{% url 'send_message' submission.pk %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <textarea name="content" class="form-control" rows="2" placeholder="Type your message…"></textarea>
+                            <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:18px;">send</i></button>
+                        </div>
+                        <input type="file" name="attachment" class="form-control form-control-sm mt-2">
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback sidebar -->
+        <div class="col-lg-4">
+            <div class="card sticky-side" style="position:sticky; top:90px;">
+                <div class="card-header"><i class="material-icons align-middle me-1" style="font-size:18px; color:var(--uj-success-fg);">fact_check</i> Submit your feedback</div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="submit_feedback" value="1">
+                        <div class="mb-3">
+                            <label class="form-label">Your recommendation *</label>
+                            {{ feedback_form.recommendation }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Detailed feedback *</label>
+                            {{ feedback_form.feedback }}
+                            <small class="text-muted">Comment on quality, methodology, and suitability for publication.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Upload amended document</label>
+                            {{ feedback_form.amended_document }}
+                            <small class="text-muted d-block mt-1">Your annotated/corrected version (.doc, .docx, .pdf)</small>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success justify-content-center"><i class="material-icons" style="font-size:17px;">check</i> Submit feedback</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var chatDiv = document.getElementById('chat-messages');
+    if (chatDiv) { chatDiv.scrollTop = chatDiv.scrollHeight; }
+});
+</script>
+{% endblock %}

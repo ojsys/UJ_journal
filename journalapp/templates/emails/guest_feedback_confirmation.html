@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #4F46E5;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border: 1px solid #dee2e6;
+        }
+        .footer {
+            background-color: #14121F;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 0 0 5px 5px;
+        }
+        .success-box {
+            background-color: #d4edda;
+            border-left: 4px solid #4F46E5;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info-box {
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✓ Review Submitted Successfully</h1>
+        </div>
+        <div class="content">
+            <p>Dear {{ guest_reviewer.first_name }} {{ guest_reviewer.last_name }},</p>
+
+            <div class="success-box">
+                <strong>Thank you!</strong> Your review has been successfully submitted.
+            </div>
+
+            <div class="info-box">
+                <h3>Submission Details</h3>
+                {% if blinded %}
+                <p><strong>Manuscript ID:</strong> {{ submission.anonymized_identifier }}</p>
+                {% else %}
+                <p><strong>Title:</strong> {{ submission.title }}</p>
+                {% endif %}
+                <p><strong>Journal:</strong> {{ journal.name }}</p>
+                <p><strong>Your Recommendation:</strong> {{ recommendation|title }}</p>
+                <p><strong>Submitted:</strong> {{ submitted_at|date:"F d, Y H:i" }}</p>
+            </div>
+
+            <p>Your expert feedback is invaluable to maintaining the quality of academic publications. The editorial team will review your feedback along with other reviewers' comments before making a final decision.</p>
+
+            <h4>What Happens Next?</h4>
+            <ul>
+                <li>The editorial team will review all feedback</li>
+                <li>A decision will be communicated to the author</li>
+                <li>Your contribution will remain confidential</li>
+            </ul>
+
+            <p>If you need to make any changes to your review or have questions, please contact us at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a> and reference Manuscript ID: <strong>{{ submission.anonymized_identifier }}</strong>.</p>
+
+            <p>We appreciate your time and expertise in the peer review process!</p>
+
+            <p>Best regards,<br>
+            <strong>{{ site_name }} Editorial Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{ site_name }}. This is an automated email, please do not reply directly.</p>
+        </div>
+    </div>
+</body>
+</html>

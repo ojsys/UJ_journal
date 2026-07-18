@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #4F46E5;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border: 1px solid #dee2e6;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #4F46E5;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #14121F;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 0 0 5px 5px;
+        }
+        .info-box {
+            background-color: #e7f3ff;
+            border-left: 4px solid #4F46E5;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Invitation to Review</h1>
+        </div>
+        <div class="content">
+            <p>Dear {{ guest_reviewer.first_name }} {{ guest_reviewer.last_name }},</p>
+
+            <p>You have been invited to serve as a guest reviewer for <strong>{{ site_name }}</strong>.</p>
+
+            <p>We value your expertise in the field and would appreciate your contribution to maintaining the quality of academic publications.</p>
+
+            <div class="info-box">
+                <strong>Your Reviewer Profile:</strong><br>
+                Email: {{ guest_reviewer.email }}<br>
+                {% if guest_reviewer.affiliation %}
+                Affiliation: {{ guest_reviewer.affiliation }}<br>
+                {% endif %}
+                {% if guest_reviewer.expertise_areas %}
+                Expertise: {{ guest_reviewer.expertise_areas }}<br>
+                {% endif %}
+            </div>
+
+            <p>To access your review assignments, please use the secure link below:</p>
+
+            <center>
+                <a href="{{ review_url }}" class="button">Access Review Portal</a>
+            </center>
+
+            <p><small>Or copy and paste this link into your browser:<br>
+            <a href="{{ review_url }}">{{ review_url }}</a></small></p>
+
+            <p><strong>Important:</strong> This invitation link is unique to you and will expire on <strong>{{ expiration_date|date:"F d, Y" }}</strong>.</p>
+
+            <p>If you have any questions or need assistance, please contact us at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+
+            <p>Thank you for your time and expertise!</p>
+
+            <p>Best regards,<br>
+            <strong>{{ site_name }} Editorial Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>&copy; {{ site_name }}. This is an automated email, please do not reply directly.</p>
+        </div>
+    </div>
+</body>
+</html>

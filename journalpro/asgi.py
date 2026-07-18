@@ -11,6 +11,8 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'journalpro.settings')
+# Use production settings for deployment
+# Override with DJANGO_SETTINGS_MODULE environment variable if needed
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'journalpro.settings.production')
 
 application = get_asgi_application()

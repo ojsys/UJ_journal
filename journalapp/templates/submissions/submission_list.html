@@ -1,0 +1,77 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}My submissions{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="uj-kicker">Author</span>
+            <h1 class="mt-1 mb-0" style="font-size:30px;">My submissions</h1>
+        </div>
+        <a href="{% url 'submission_create' %}" class="btn btn-primary"><i class="material-icons" style="font-size:18px;">upload</i> New submission</a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <select name="status" class="form-select" onchange="this.form.submit()">
+                        <option value="">All statuses</option>
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if submissions %}
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="ps-4">Title</th><th>Journal</th><th>Status</th><th>Submitted</th><th class="text-end pe-4">Actions</th></tr></thead>
+                    <tbody>
+                        {% for submission in submissions %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-semibold" style="color:var(--uj-ink);">{{ submission.title|truncatewords:10|default:"Untitled manuscript" }}</div>
+                                <div class="uj-msid mt-1">{{ submission.anonymized_identifier }}</div>
+                            </td>
+                            <td style="font-size:14px;">{{ submission.journal.name }}</td>
+                            <td>{% include 'journalapp/partials/_submission_status.html' with status=submission.status %}</td>
+                            <td style="font-size:13px; color:var(--uj-muted-2);">{{ submission.submitted_at|date:"M d, Y" }}</td>
+                            <td class="text-end pe-4">
+                                <a href="{% url 'submission_detail' submission.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">visibility</i></a>
+                                {% if submission.status == 'revision_requested' %}<a href="{% url 'submission_revise' submission.pk %}" class="btn btn-primary btn-sm"><i class="material-icons" style="font-size:15px;">edit</i></a>{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if submissions.has_other_pages %}
+    <nav class="mt-4"><ul class="pagination justify-content-center">
+        {% if submissions.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ submissions.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a></li>{% endif %}
+        {% for num in submissions.paginator.page_range %}
+            {% if submissions.number == num %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% else %}<li class="page-item"><a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a></li>{% endif %}
+        {% endfor %}
+        {% if submissions.has_next %}<li class="page-item"><a class="page-link" href="?page={{ submissions.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a></li>{% endif %}
+    </ul></nav>
+    {% endif %}
+    {% else %}
+    <div class="card"><div class="card-body text-center py-5">
+        <span class="uj-brand-mark mx-auto mb-3" style="width:56px;height:56px;border-radius:16px;"><i class="material-icons">upload_file</i></span>
+        <h5>No submissions yet</h5>
+        <p class="text-muted">You haven't submitted any manuscripts.</p>
+        <a href="{% url 'submission_create' %}" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">upload</i> Submit your first manuscript</a>
+    </div></div>
+    {% endif %}
+</div>
+{% endblock %}

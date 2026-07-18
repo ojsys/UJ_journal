@@ -3,36 +3,35 @@
 {% block title %}Journals{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <h1 class="mb-4">University Journals</h1>
-    
-    <div class="row">
+<div class="container py-4">
+    <div class="mb-4">
+        <span class="uj-kicker">Explore</span>
+        <h1 class="mt-1 mb-0" style="font-size:32px;">University journals</h1>
+    </div>
+
+    <div class="row g-4">
         {% for journal in journals %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                {% if journal.cover_image %}
-                <img src="{{ journal.cover_image.url }}" class="card-img-top" alt="{{ journal.name }}">
-                {% else %}
-                <div class="card-img-top bg-light text-center py-5">
-                    <i class="fas fa-book fa-3x text-muted"></i>
+        <div class="col-md-6 col-lg-4">
+            <a href="{% url 'department_journal' journal.id %}" class="card card-hover h-100 text-decoration-none">
+                <div class="uj-jcard__media">
+                    {% if journal.cover_image %}
+                    <img src="{{ journal.cover_image.url }}" alt="{{ journal.name }}">
+                    {% else %}
+                    <div class="uj-jcard__code"><i class="material-icons" style="font-size:44px;">menu_book</i></div>
+                    {% endif %}
                 </div>
-                {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title">Journal of {{ journal.name }}</h5>
-                    <p class="card-text">{{ journal.description|truncatewords:20 }}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="badge bg-primary">{{ journal.article_count }} Articles</span>
-                        <a href="{% url 'department_journal' journal.id %}" class="btn btn-outline-primary">View Journal</a>
+                <div class="card-body d-flex flex-column">
+                    <h5 class="mb-2">Journal of {{ journal.name }}</h5>
+                    <p class="text-muted mb-3" style="font-size:14px;">{{ journal.description|truncatewords:20|default:"Peer-reviewed academic journal." }}</p>
+                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                        <span class="uj-pill uj-pill--brand">{{ journal.article_count }} articles</span>
+                        <span class="fw-semibold d-inline-flex align-items-center gap-1" style="color:var(--uj-indigo-700); font-family:var(--uj-font-display); font-size:14px;">View journal <i class="material-icons" style="font-size:16px;">arrow_forward</i></span>
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
         {% empty %}
-        <div class="col-12">
-            <div class="alert alert-info">
-                No journals available at this time.
-            </div>
-        </div>
+        <div class="col-12"><div class="alert alert-info"><i class="material-icons align-middle me-1" style="font-size:18px;">info</i> No journals available at this time.</div></div>
         {% endfor %}
     </div>
 </div>

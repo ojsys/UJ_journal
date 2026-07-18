@@ -1,0 +1,150 @@
+{% extends 'journalapp/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Review & publish — {{ submission.title|truncatewords:5 }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ext-item { display:flex; align-items:center; gap:8px; font-size:14px; padding:4px 0; }
+    .ext-ok { color:var(--uj-success-fg); }
+    .ext-warn { color:var(--uj-warn-fg); }
+    .ext-no { color:var(--uj-rose); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center"><div class="col-lg-11">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+            <div>
+                <span class="uj-kicker">Final step · Review &amp; publish</span>
+                <h1 class="mt-1 mb-1" style="font-size:28px;">{{ submission.title|default:"Untitled manuscript" }}</h1>
+                <div class="d-flex flex-wrap gap-3 text-muted" style="font-size:13px;">
+                    <span><i class="material-icons align-middle" style="font-size:15px;">person</i> {{ submission.author.get_full_name|default:submission.author.email }}</span>
+                    <span><i class="material-icons align-middle" style="font-size:15px;">menu_book</i> {{ submission.journal.name }}</span>
+                    <span><i class="material-icons align-middle" style="font-size:15px;">event</i> {{ submission.submitted_at|date:"M d, Y" }}</span>
+                </div>
+            </div>
+            <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-light"><i class="material-icons" style="font-size:16px;">arrow_back</i> Back to details</a>
+        </div>
+
+        <div class="alert alert-warning mb-4">
+            <h6 class="mb-1"><i class="material-icons align-middle me-1" style="font-size:18px;">warning</i> Review before publishing</h6>
+            <p class="mb-0" style="font-size:14px;">Review the extracted content carefully — you can edit any field. Once published, the article is immediately visible to the public.</p>
+        </div>
+
+        <form method="post" action="{% url 'publish_submission' submission.pk %}">
+            {% csrf_token %}
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">Article content</div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <label class="form-label">Title <span class="text-danger">*</span></label>
+                                <input type="text" name="title" class="form-control form-control-lg" value="{{ form.title.value|default:'' }}" required>
+                                {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">Abstract <span class="text-danger">*</span></label>
+                                {{ form.abstract }}
+                                {% if form.abstract.errors %}<div class="text-danger small mt-1">{{ form.abstract.errors }}</div>{% endif %}
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">Keywords</label>
+                                <input type="text" name="keywords" class="form-control" value="{{ form.keywords.value|default:'' }}" placeholder="e.g., machine learning, data science">
+                                <small class="text-muted">Separate keywords with commas.</small>
+                                {% if form.keywords.errors %}<div class="text-danger small mt-1">{{ form.keywords.errors }}</div>{% endif %}
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">Main content <span class="text-danger">*</span></label>
+                                {{ form.content }}
+                                {% if form.content.errors %}<div class="text-danger small mt-1">{{ form.content.errors }}</div>{% endif %}
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">References / citations</label>
+                                {{ form.extracted_citations }}
+                                {% if form.extracted_citations.errors %}<div class="text-danger small mt-1">{{ form.extracted_citations.errors }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">Publication details</div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label class="form-label">Category</label>
+                                <select name="category" class="form-select" id="categorySelect">
+                                    <option value="">— Select category —</option>
+                                    {% for cat in categories %}<option value="{{ cat.id }}">{{ cat.name }}</option>{% empty %}<option value="" disabled>No categories available</option>{% endfor %}
+                                    <option value="__new__">+ Add new category</option>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="newCategoryDiv" style="display:none;">
+                                <label class="form-label">New category name</label>
+                                <input type="text" name="new_category" class="form-control" id="newCategoryInput" placeholder="Enter new category name">
+                                <small class="text-muted">Creates a new category for {{ submission.journal.name }}.</small>
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mb-3"><label class="form-label">Volume</label><input type="number" name="volume" class="form-control" value="{{ form.volume.value|default:'' }}"></div>
+                                <div class="col-6 mb-3"><label class="form-label">Issue</label><input type="number" name="issue" class="form-control" value="{{ form.issue.value|default:'' }}"></div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mb-3"><label class="form-label">Start page</label><input type="number" name="page_start" class="form-control" value="{{ form.page_start.value|default:'' }}"></div>
+                                <div class="col-6 mb-3"><label class="form-label">End page</label><input type="number" name="page_end" class="form-control" value="{{ form.page_end.value|default:'' }}"></div>
+                            </div>
+                            <div>
+                                <label class="form-label">DOI</label>
+                                <input type="text" name="doi" class="form-control" value="{{ form.doi.value|default:'' }}" placeholder="10.xxxx/xxxxx">
+                                <small class="text-muted">Digital Object Identifier.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header">Extraction status</div>
+                        <div class="card-body">
+                            <div class="ext-item">{% if extracted.title %}<i class="material-icons ext-ok" style="font-size:18px;">check_circle</i>{% else %}<i class="material-icons ext-no" style="font-size:18px;">cancel</i>{% endif %} Title extracted</div>
+                            <div class="ext-item">{% if extracted.abstract %}<i class="material-icons ext-ok" style="font-size:18px;">check_circle</i>{% else %}<i class="material-icons ext-no" style="font-size:18px;">cancel</i>{% endif %} Abstract extracted</div>
+                            <div class="ext-item">{% if extracted.keywords %}<i class="material-icons ext-ok" style="font-size:18px;">check_circle</i>{% else %}<i class="material-icons ext-warn" style="font-size:18px;">remove_circle</i>{% endif %} Keywords extracted</div>
+                            <div class="ext-item">{% if extracted.content %}<i class="material-icons ext-ok" style="font-size:18px;">check_circle</i>{% else %}<i class="material-icons ext-no" style="font-size:18px;">cancel</i>{% endif %} Content extracted</div>
+                            <div class="ext-item">{% if extracted.citations %}<i class="material-icons ext-ok" style="font-size:18px;">check_circle</i>{% else %}<i class="material-icons ext-warn" style="font-size:18px;">remove_circle</i>{% endif %} Citations extracted</div>
+                        </div>
+                    </div>
+
+                    <div class="card"><div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg"><i class="material-icons" style="font-size:18px;">public</i> Publish article</button>
+                            <a href="{% url 'upload_final_document' submission.pk %}" class="btn btn-outline-primary"><i class="material-icons" style="font-size:17px;">restart_alt</i> Re-upload document</a>
+                            <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-light">Cancel</a>
+                        </div>
+                    </div></div>
+                </div>
+            </div>
+        </form>
+    </div></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categorySelect = document.getElementById('categorySelect');
+    const newCategoryDiv = document.getElementById('newCategoryDiv');
+    const newCategoryInput = document.getElementById('newCategoryInput');
+    categorySelect.addEventListener('change', function() {
+        if (this.value === '__new__') {
+            newCategoryDiv.style.display = 'block';
+            newCategoryInput.required = true;
+            newCategoryInput.focus();
+        } else {
+            newCategoryDiv.style.display = 'none';
+            newCategoryInput.required = false;
+            newCategoryInput.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}

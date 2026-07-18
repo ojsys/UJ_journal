@@ -264,7 +264,7 @@
                 {% endif %}
                 
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'article_create' %}">
+                    <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#selectJournalModal">
                         <i class="material-icons">add_circle</i> Submit Article
                     </a>
                 </li>
@@ -332,7 +332,7 @@
                 </div>
                 <div class="d-none d-md-block">
                     <a href="{% url 'profile' %}" class="btn btn-light btn-sm me-2">Edit Profile</a>
-                    <a href="{% url 'article_create' %}" class="btn btn-success btn-sm">New Article</a>
+                    <a href="#" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#selectJournalModal">New Article</a>
                 </div>
             </div>
         </div>
@@ -504,7 +504,7 @@
                         <div class="article-empty-state">
                             <i class="material-icons">article</i>
                             <p>You haven't created any articles yet.</p>
-                            <a href="{% url 'article_create' %}" class="btn btn-primary">
+                            <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#selectJournalModal">
                                 <i class="material-icons me-1" style="font-size: 16px;">add</i>
                                 Create Your First Article
                             </a>
@@ -767,6 +767,35 @@
     <a href="#" class="toggle-sidebar" id="toggleSidebar">
         <i class="material-icons">menu</i>
     </a>
+</div>
+
+<!-- Select Journal Modal -->
+<div class="modal fade" id="selectJournalModal" tabindex="-1" aria-labelledby="selectJournalModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="selectJournalModalLabel">Select a Journal</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Please choose a journal to submit your new article to.</p>
+        <div class="list-group">
+          {% for journal in journals %}
+            <a href="{% url 'article_create' journal.id %}" class="list-group-item list-group-item-action">
+              <strong>{{ journal.name }}</strong>
+              <br>
+              <small class="text-muted">{{ journal.department.name }}</small>
+            </a>
+          {% empty %}
+            <p class="text-muted">No journals have been configured yet. Please contact an administrator.</p>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 

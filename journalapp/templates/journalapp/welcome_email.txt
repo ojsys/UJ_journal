@@ -1,7 +1,7 @@
 WELCOME TO UNIVERSITY JOURNAL
 Your Gateway to Academic Excellence
 
-Hello {{ user.first_name|default:user.username }},
+Hello {{ user.first_name|default:user.email }},
 
 Thank you for joining University Journal! We're thrilled to welcome you to our growing community of researchers, academics, and knowledge seekers.
 

@@ -1,0 +1,137 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Submission: {{ submission.title|truncatewords:5 }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'submission_list' %}" class="uj-nav-link d-inline-flex align-items-center gap-1 mb-3 px-0" style="background:none;">
+        <i class="material-icons" style="font-size:18px;">arrow_back</i> Back to submissions
+    </a>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <!-- Header card -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                        <div>
+                            <span class="uj-msid mb-2">{{ submission.anonymized_identifier }}</span>
+                            <h4 class="mt-2 mb-0">{{ submission.title|default:"Untitled manuscript" }}</h4>
+                        </div>
+                        {% include 'journalapp/partials/_submission_status.html' with status=submission.status %}
+                    </div>
+                    <div class="row g-3" style="font-size:14px;">
+                        <div class="col-sm-6"><span class="text-muted">Journal</span><div class="fw-semibold">{{ submission.journal.name }}</div></div>
+                        <div class="col-sm-6"><span class="text-muted">Submitted</span><div class="fw-semibold">{{ submission.submitted_at|date:"F d, Y" }}</div></div>
+                        <div class="col-sm-6"><span class="text-muted">Last updated</span><div class="fw-semibold">{{ submission.updated_at|date:"F d, Y" }}</div></div>
+                    </div>
+                    {% if submission.cover_letter %}
+                    <div class="mt-3">
+                        <span class="uj-kicker">Cover letter</span>
+                        <p class="uj-panel p-3 mt-2 mb-0" style="box-shadow:none; font-size:14px;">{{ submission.cover_letter }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if submission.status == 'published' and submission.published_article %}
+            <div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span><i class="material-icons align-middle me-1" style="font-size:19px;">check_circle</i> <strong>Published!</strong> Your article is now live.</span>
+                <a href="{% url 'article_detail' submission.published_article.pk %}" class="btn btn-success btn-sm"><i class="material-icons" style="font-size:15px;">public</i> View published article</a>
+            </div>
+            {% endif %}
+
+            <!-- Reviewer feedback -->
+            {% if completed_assignments %}
+            <div class="card mb-4">
+                <div class="card-header">Reviewer feedback</div>
+                <div class="card-body d-grid gap-3">
+                    {% for assignment in completed_assignments %}
+                    <div class="uj-panel p-3" style="box-shadow:none;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">Reviewer {{ forloop.counter }}</h6>
+                            {% if assignment.recommendation == 'approve' %}<span class="uj-pill uj-pill--success">Approve</span>
+                            {% elif assignment.recommendation == 'minor_revision' %}<span class="uj-pill uj-pill--warn">Minor revision</span>
+                            {% elif assignment.recommendation == 'major_revision' %}<span class="uj-pill uj-pill--warn">Major revision</span>
+                            {% elif assignment.recommendation == 'reject' %}<span class="uj-pill uj-pill--danger">Reject</span>
+                            {% else %}<span class="uj-pill">No recommendation</span>{% endif %}
+                        </div>
+                        {% if assignment.feedback %}<p class="mb-0" style="font-size:14px;">{{ assignment.feedback|linebreaksbr }}</p>{% else %}<p class="text-muted fst-italic mb-0" style="font-size:14px;">No written feedback provided.</p>{% endif %}
+                        {% if assignment.amended_document %}
+                        <a href="{{ assignment.amended_document.url }}" class="btn btn-outline-primary btn-sm mt-3"><i class="material-icons" style="font-size:15px;">download</i> Download annotated document</a>
+                        {% endif %}
+                        <small class="text-muted d-block mt-2">Completed {{ assignment.completed_at|date:"F d, Y H:i" }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Revision request -->
+            {% if submission.status == 'revision_requested' %}
+            <div class="card mb-4" style="border-color:var(--uj-warn-fg);">
+                <div class="card-header" style="color:var(--uj-warn-fg);">Submit revised document</div>
+                <div class="card-body">
+                    <p style="font-size:14px;">Based on the reviewer feedback above, please revise your manuscript and upload an updated version.</p>
+                    <div class="alert alert-warning">
+                        <h6 class="mb-2"><i class="material-icons align-middle me-1" style="font-size:18px;">lightbulb</i> Tips for revision</h6>
+                        <ul class="mb-0" style="font-size:13px;">
+                            <li>Address all reviewer comments and suggestions</li>
+                            <li>Use any annotated documents as reference</li>
+                            <li>Consider tracking changes in your revised document</li>
+                            <li>Include a brief note about what changed</li>
+                        </ul>
+                    </div>
+                    <a href="{% url 'submission_revise' submission.pk %}" class="btn btn-primary btn-lg"><i class="material-icons" style="font-size:18px;">upload_file</i> Upload revised document</a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Document versions -->
+            <div class="card mb-4">
+                <div class="card-header">Document versions</div>
+                <div class="card-body p-0">
+                    {% if versions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead><tr><th class="ps-4">Version</th><th>Date</th><th>Notes</th><th class="text-end pe-4">Download</th></tr></thead>
+                            <tbody>
+                                {% for version in versions %}
+                                <tr>
+                                    <td class="ps-4"><span class="fw-semibold">V{{ version.version_number }}</span> {% if version.is_final %}<span class="uj-pill uj-pill--success ms-1">Final</span>{% endif %}</td>
+                                    <td style="font-size:13px;">{{ version.uploaded_at|date:"M d, Y H:i" }}</td>
+                                    <td style="font-size:13px;" class="text-muted">{{ version.notes|truncatewords:10|default:"—" }}</td>
+                                    <td class="text-end pe-4"><a href="{% url 'download_document' version.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">download</i></a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-4 mb-0">No document versions available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card sticky-side" style="position:sticky; top:90px;">
+                <div class="card-header">Activity timeline</div>
+                <div class="card-body" style="max-height:520px; overflow-y:auto;">
+                    <ul class="uj-timeline mb-0">
+                        {% for log in logs %}
+                        <li>
+                            <div class="uj-tl-date">{{ log.timestamp|date:"M d, Y H:i" }}</div>
+                            <div style="font-size:13.5px; color:var(--uj-ink);">{{ log.action }}</div>
+                        </li>
+                        {% empty %}
+                        <li><span class="text-muted">No activity yet.</span></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,62 +1,36 @@
 {% extends 'journalapp/base.html' %}
 
-{% block title %}Delete Article{% endblock %}
+{% block title %}Delete article{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-sm border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h4 class="mb-0">Delete Article</h4>
+<div class="container py-4">
+    <div class="row justify-content-center"><div class="col-lg-7">
+        <div class="card">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <span style="width:48px;height:48px;border-radius:14px;background:var(--uj-danger-bg);color:var(--uj-rose);display:flex;align-items:center;justify-content:center;flex:none;"><i class="material-icons">delete</i></span>
+                    <div><h3 class="mb-0" style="font-size:22px;">Delete article</h3><small class="text-muted">This action cannot be undone.</small></div>
                 </div>
-                <div class="card-body">
-                    <div class="alert alert-warning">
-                        <i class="material-icons" style="font-size: 24px; vertical-align: middle; margin-right: 10px;">warning</i>
-                        <span>Are you sure you want to delete this article? This action cannot be undone.</span>
+
+                <div class="uj-panel p-3 mb-4" style="box-shadow:none;">
+                    <h5 class="mb-2">{{ object.title }}</h5>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        {% if object.journal %}<span class="uj-pill">{{ object.journal.name }}</span>{% endif %}
+                        {% if object.category %}<span class="uj-pill">{{ object.category.name }}</span>{% endif %}
+                        <span class="uj-pill uj-pill--brand">{{ object.get_status_display }}</span>
                     </div>
-                    
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0">{{ object.title }}</h5>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-1">
-                                <strong>Department:</strong> {{ object.department.name }}
-                            </p>
-                            <p class="text-muted mb-1">
-                                <strong>Category:</strong> {{ object.category.name }}
-                            </p>
-                            <p class="text-muted mb-1">
-                                <strong>Status:</strong> {{ object.get_status_display }}
-                            </p>
-                            <p class="text-muted mb-3">
-                                <strong>Created:</strong> {{ object.created_at|date:"F j, Y" }}
-                            </p>
-                            
-                            <div class="abstract-preview">
-                                <h6>Abstract:</h6>
-                                <p>{{ object.abstract|truncatewords:50 }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <form method="POST">
-                        {% csrf_token %}
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'article_detail' object.pk %}" class="btn btn-outline-secondary">
-                                <i class="material-icons" style="font-size: 16px; vertical-align: middle;">arrow_back</i>
-                                Cancel
-                            </a>
-                            <button type="submit" class="btn btn-danger">
-                                <i class="material-icons" style="font-size: 16px; vertical-align: middle;">delete</i>
-                                Confirm Delete
-                            </button>
-                        </div>
-                    </form>
+                    <p class="text-muted mb-0" style="font-size:14px;">{{ object.abstract|truncatewords:40|safe }}</p>
                 </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'article_detail' object.pk %}" class="btn btn-light"><i class="material-icons" style="font-size:16px;">arrow_back</i> Cancel</a>
+                        <button type="submit" class="btn btn-danger"><i class="material-icons" style="font-size:16px;">delete</i> Confirm delete</button>
+                    </div>
+                </form>
             </div>
         </div>
-    </div>
+    </div></div>
 </div>
 {% endblock %}

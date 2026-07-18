@@ -1,9 +1,15 @@
 from django import forms
+from django.db import models
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from ckeditor.widgets import CKEditorWidget
-from .models import Profile, Article, Review, Comment, Department, SiteSettings, HeroSlide, ArticleCategory, ArchivedJournal
+from .models import (
+    Profile, Article, Review, Comment, Department, SiteSettings,
+    HeroSlide, ArticleCategory, ArchivedJournal, Journal,
+    Submission, Assignment, SubmissionMessage, DocumentVersion,
+    GuestReviewer
+)
 
 User = get_user_model()
 
@@ -114,9 +120,15 @@ class HeroSlideForm(forms.ModelForm):
         }
 
 class ArticleForm(forms.ModelForm):
+    document_upload = forms.FileField(
+        label="Upload Your Manuscript",
+        required=False,
+        help_text="Upload a .docx or .pdf file to automatically populate the form fields below."
+    )
+
     class Meta:
         model = Article
-        fields = ['title', 'abstract', 'department', 'category', 'keywords', 'content', 'file']
+        fields = ['title', 'abstract', 'journal', 'category', 'keywords', 'content', 'document_upload']
         widgets = {
             'abstract': CKEditorWidget(),
             'content': CKEditorWidget(),
@@ -124,17 +136,17 @@ class ArticleForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
-        # Pre-select user's department if available
-        if user and hasattr(user, 'profile') and user.profile.department:
-            self.fields['department'].initial = user.profile.department
-        
-        # Set default category
-        default_category = ArticleCategory.get_default()
-        if default_category:
-            self.fields['category'].initial = default_category
+        self.fields['category'].queryset = ArticleCategory.objects.none()
+
+        if 'journal' in self.data:
+            try:
+                journal_id = int(self.data.get('journal'))
+                self.fields['category'].queryset = ArticleCategory.objects.filter(journal_id=journal_id).order_by('name')
+            except (ValueError, TypeError):
+                pass  # invalid input from the client; ignore and fallback to empty queryset
+        elif self.instance.pk and self.instance.journal:
+            self.fields['category'].queryset = self.instance.journal.categories.order_by('name')
 
 class ReviewForm(forms.ModelForm):
     class Meta:
@@ -158,19 +170,525 @@ class CommentForm(forms.ModelForm):
 class DepartmentForm(forms.ModelForm):
     class Meta:
         model = Department
-        fields = ['name', 'code', 'description', 'journal_title', 'journal_description', 'cover_image']
+        fields = ['name', 'code', 'description']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
-            'journal_description': forms.Textarea(attrs={'rows': 3}),
         }
 
-# Add this form for archived journals
+class JournalForm(forms.ModelForm):
+    class Meta:
+        model = Journal
+        fields = ['name', 'department', 'description', 'cover_image']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+class AssignReviewerForm(forms.Form):
+    reviewer = forms.ModelChoiceField(
+        queryset=User.objects.filter(profile__is_reviewer=True),
+        label="Select a Reviewer",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+
 class ArchivedJournalForm(forms.ModelForm):
     class Meta:
         model = ArchivedJournal
-        fields = ['title', 'description', 'department', 'volume', 'issue', 
+        fields = ['title', 'description', 'department', 'volume', 'issue',
                   'publication_date', 'document', 'cover_image']
         widgets = {
             'publication_date': forms.DateInput(attrs={'type': 'date'}),
             'description': forms.Textarea(attrs={'rows': 4}),
         }
+
+
+################### Submission Workflow Forms #########################
+
+class SubmissionForm(forms.ModelForm):
+    """Form for authors to submit their articles"""
+    class Meta:
+        model = Submission
+        fields = ['journal', 'document', 'cover_letter']
+        widgets = {
+            'cover_letter': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Optional: Include a cover letter or notes for the editor...'
+            }),
+            'document': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.doc,.docx'
+            }),
+        }
+        labels = {
+            'journal': 'Select Journal',
+            'document': 'Upload Manuscript (Word Document)',
+            'cover_letter': 'Cover Letter (Optional)',
+        }
+        help_texts = {
+            'document': 'Please upload your article in Microsoft Word format (.doc or .docx)',
+        }
+
+    def clean_document(self):
+        document = self.cleaned_data.get('document')
+        if document:
+            # Check file extension
+            ext = document.name.split('.')[-1].lower()
+            if ext not in ['doc', 'docx']:
+                raise forms.ValidationError('Only Word documents (.doc, .docx) are allowed.')
+            # Check file size (max 10MB)
+            if document.size > 10 * 1024 * 1024:
+                raise forms.ValidationError('File size must be under 10MB.')
+        return document
+
+
+class SubmissionAssignmentForm(forms.ModelForm):
+    """Form for admin to assign reviewers or editors to submissions"""
+    class Meta:
+        model = Assignment
+        fields = ['assigned_to', 'role', 'notes']
+        widgets = {
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Optional notes for the assignee...'
+            }),
+        }
+
+    def __init__(self, *args, role=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Set default role if provided
+        if role:
+            self.fields['role'].initial = role
+            if role == 'reviewer':
+                self.fields['assigned_to'].queryset = User.objects.filter(
+                    profile__is_reviewer=True
+                ).select_related('profile')
+                self.fields['assigned_to'].label = 'Select Reviewer'
+            elif role == 'editor':
+                self.fields['assigned_to'].queryset = User.objects.filter(
+                    profile__is_editor=True
+                ).select_related('profile')
+                self.fields['assigned_to'].label = 'Select Editor'
+        else:
+            # Show all eligible users
+            self.fields['assigned_to'].queryset = User.objects.filter(
+                models.Q(profile__is_reviewer=True) | models.Q(profile__is_editor=True)
+            ).select_related('profile').distinct()
+
+        self.fields['assigned_to'].widget.attrs['class'] = 'form-control'
+        self.fields['assigned_to'].empty_label = '-- Select a user --'
+        self.fields['role'].widget.attrs['class'] = 'form-control'
+        self.fields['role'].empty_label = '-- Select role --'
+
+
+class AssignmentFeedbackForm(forms.ModelForm):
+    """Form for reviewers/editors to submit their feedback"""
+    class Meta:
+        model = Assignment
+        fields = ['feedback', 'recommendation', 'amended_document']
+        widgets = {
+            'feedback': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 6,
+                'placeholder': 'Provide your detailed feedback on the submission...'
+            }),
+            'recommendation': forms.Select(attrs={'class': 'form-control'}),
+            'amended_document': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.doc,.docx,.pdf'
+            }),
+        }
+        labels = {
+            'feedback': 'Your Feedback',
+            'recommendation': 'Your Recommendation',
+            'amended_document': 'Upload Amended Document (Optional)',
+        }
+        help_texts = {
+            'amended_document': 'Upload the document with your annotations, corrections, or suggested changes',
+        }
+
+
+class SubmissionMessageForm(forms.ModelForm):
+    """Form for sending chat messages"""
+    class Meta:
+        model = SubmissionMessage
+        fields = ['content', 'attachment']
+        widgets = {
+            'content': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Type your message...'
+            }),
+            'attachment': forms.FileInput(attrs={
+                'class': 'form-control'
+            }),
+        }
+        labels = {
+            'content': '',
+            'attachment': 'Attach File (Optional)',
+        }
+
+
+class DocumentVersionForm(forms.ModelForm):
+    """Form for uploading new document versions"""
+    class Meta:
+        model = DocumentVersion
+        fields = ['document', 'notes', 'is_final']
+        widgets = {
+            'document': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.doc,.docx'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Notes about this version...'
+            }),
+        }
+        labels = {
+            'document': 'Upload Document',
+            'is_final': 'Mark as Final Version',
+        }
+
+
+class FinalDocumentUploadForm(forms.Form):
+    """Form for admin to upload the final approved document"""
+    document = forms.FileField(
+        label='Final Approved Document',
+        help_text='Upload the final approved Word document for content extraction',
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.doc,.docx'
+        })
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Optional notes about this final version...'
+        })
+    )
+
+    def clean_document(self):
+        document = self.cleaned_data.get('document')
+        if document:
+            ext = document.name.split('.')[-1].lower()
+            if ext not in ['doc', 'docx']:
+                raise forms.ValidationError('Only Word documents (.doc, .docx) are allowed.')
+        return document
+
+
+class PublishArticleForm(forms.ModelForm):
+    """Form for admin to add publication metadata before publishing"""
+    class Meta:
+        model = Article
+        fields = ['title', 'abstract', 'keywords', 'content', 'category',
+                  'volume', 'issue', 'page_start', 'page_end', 'doi',
+                  'extracted_citations']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'abstract': CKEditorWidget(),
+            'keywords': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., science, research, education'
+            }),
+            'content': CKEditorWidget(),
+            'volume': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 12'
+            }),
+            'issue': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 3'
+            }),
+            'page_start': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 45'
+            }),
+            'page_end': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 62'
+            }),
+            'doi': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 10.1234/journal.2024.001'
+            }),
+            'extracted_citations': CKEditorWidget(),
+        }
+        labels = {
+            'extracted_citations': 'References/Citations',
+            'page_start': 'Start Page',
+            'page_end': 'End Page',
+        }
+
+
+class RevisionRequestForm(forms.Form):
+    """Form for admin to request revisions from author"""
+    notes = forms.CharField(
+        label='Revision Notes',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 5,
+            'placeholder': 'Describe what revisions are needed...'
+        }),
+        help_text='These notes will be sent to the author via email.'
+    )
+
+
+################### Guest Reviewer Forms #########################
+
+class GuestReviewerForm(forms.ModelForm):
+    """Form for adding a single guest reviewer"""
+    class Meta:
+        model = GuestReviewer
+        fields = ['email', 'first_name', 'last_name', 'affiliation', 'expertise_areas']
+        widgets = {
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'reviewer@example.com'
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'First Name'
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Last Name'
+            }),
+            'affiliation': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Institution or Organization'
+            }),
+            'expertise_areas': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'e.g., Machine Learning, Data Science, NLP (comma-separated)'
+            }),
+        }
+        help_texts = {
+            'email': 'Guest reviewer will receive invitation emails at this address.',
+            'expertise_areas': 'Enter areas of expertise separated by commas.',
+        }
+
+    def clean_email(self):
+        """Validate that email is not already in use"""
+        email = self.cleaned_data.get('email')
+        if email:
+            # Check if email exists in GuestReviewer
+            if GuestReviewer.objects.filter(email=email).exists():
+                if not self.instance.pk:  # Only check on creation, not update
+                    raise forms.ValidationError('A guest reviewer with this email already exists.')
+            # Check if email exists in CustomUser
+            from .models import CustomUser
+            if CustomUser.objects.filter(email=email).exists():
+                raise forms.ValidationError('This email is already registered as a user account.')
+        return email
+
+
+class BulkGuestReviewerForm(forms.Form):
+    """Form for adding multiple guest reviewers at once"""
+    reviewer_list = forms.CharField(
+        label='Reviewer List',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 10,
+            'placeholder': 'Enter one reviewer per line in the format:\nemail@example.com, First Name, Last Name, Affiliation\n\nExample:\njohn@example.com, John, Doe, MIT\njane@example.com, Jane, Smith, Harvard'
+        }),
+        help_text='Enter one reviewer per line. Format: email, first name, last name, affiliation (optional)'
+    )
+
+    def clean_reviewer_list(self):
+        """Parse and validate the reviewer list"""
+        reviewer_list = self.cleaned_data.get('reviewer_list', '').strip()
+        if not reviewer_list:
+            raise forms.ValidationError('Please provide at least one reviewer.')
+
+        lines = [line.strip() for line in reviewer_list.split('\n') if line.strip()]
+        parsed_reviewers = []
+        errors = []
+
+        for i, line in enumerate(lines, 1):
+            parts = [p.strip() for p in line.split(',')]
+            if len(parts) < 3:
+                errors.append(f'Line {i}: Invalid format. Need at least email, first name, and last name.')
+                continue
+
+            email = parts[0]
+            first_name = parts[1]
+            last_name = parts[2]
+            affiliation = parts[3] if len(parts) > 3 else ''
+
+            # Validate email format
+            try:
+                forms.EmailField().clean(email)
+            except forms.ValidationError:
+                errors.append(f'Line {i}: Invalid email address "{email}".')
+                continue
+
+            # Check if email already exists
+            if GuestReviewer.objects.filter(email=email).exists():
+                errors.append(f'Line {i}: Email "{email}" already exists as a guest reviewer.')
+                continue
+
+            from .models import CustomUser
+            if CustomUser.objects.filter(email=email).exists():
+                errors.append(f'Line {i}: Email "{email}" is already a registered user.')
+                continue
+
+            parsed_reviewers.append({
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name,
+                'affiliation': affiliation,
+            })
+
+        if errors:
+            raise forms.ValidationError('\n'.join(errors))
+
+        if not parsed_reviewers:
+            raise forms.ValidationError('No valid reviewers found in the list.')
+
+        return parsed_reviewers
+
+
+class AssignGuestReviewerForm(forms.Form):
+    """Form for assigning a guest reviewer to a submission"""
+    REVIEWER_TYPE_CHOICES = [
+        ('existing_guest', 'Existing Guest Reviewer'),
+        ('new_guest', 'New Guest Reviewer'),
+        ('registered_user', 'Registered User'),
+    ]
+
+    reviewer_type = forms.ChoiceField(
+        choices=REVIEWER_TYPE_CHOICES,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+        initial='registered_user',
+        label='Reviewer Type'
+    )
+
+    # For existing guest reviewer
+    guest_reviewer = forms.ModelChoiceField(
+        queryset=GuestReviewer.objects.filter(is_active=True),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Select Guest Reviewer',
+        empty_label='-- Select a guest reviewer --'
+    )
+
+    # For new guest reviewer
+    new_guest_email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'reviewer@example.com'
+        }),
+        label='Email'
+    )
+    new_guest_first_name = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'First Name'
+        }),
+        label='First Name'
+    )
+    new_guest_last_name = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Last Name'
+        }),
+        label='Last Name'
+    )
+    new_guest_affiliation = forms.CharField(
+        required=False,
+        max_length=300,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Institution (optional)'
+        }),
+        label='Affiliation'
+    )
+
+    # For registered user (existing field)
+    assigned_to = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Select User',
+        empty_label='-- Select a reviewer --'
+    )
+
+    role = forms.ChoiceField(
+        choices=Assignment.ROLE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        initial='reviewer',
+        label='Role'
+    )
+
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Optional notes for the reviewer...'
+        }),
+        label='Notes'
+    )
+
+    blinded = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Blind Review (hide author information)',
+        help_text='If checked, author information will be hidden from the reviewer.'
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set queryset for assigned_to field (reviewers and editors)
+        from .models import CustomUser
+        self.fields['assigned_to'].queryset = CustomUser.objects.filter(
+            models.Q(profile__is_reviewer=True) | models.Q(profile__is_editor=True)
+        ).distinct()
+
+    def clean(self):
+        """Validate that appropriate fields are filled based on reviewer_type"""
+        cleaned_data = super().clean()
+        reviewer_type = cleaned_data.get('reviewer_type')
+
+        if reviewer_type == 'existing_guest':
+            if not cleaned_data.get('guest_reviewer'):
+                raise forms.ValidationError('Please select an existing guest reviewer.')
+
+        elif reviewer_type == 'new_guest':
+            required_fields = ['new_guest_email', 'new_guest_first_name', 'new_guest_last_name']
+            for field in required_fields:
+                if not cleaned_data.get(field):
+                    field_name = field.replace('new_guest_', '').replace('_', ' ').title()
+                    raise forms.ValidationError(f'{field_name} is required for new guest reviewer.')
+
+            # Check if email already exists
+            email = cleaned_data.get('new_guest_email')
+            if email:
+                if GuestReviewer.objects.filter(email=email).exists():
+                    raise forms.ValidationError(f'Guest reviewer with email {email} already exists.')
+                from .models import CustomUser
+                if CustomUser.objects.filter(email=email).exists():
+                    raise forms.ValidationError(f'Email {email} is already a registered user.')
+
+        elif reviewer_type == 'registered_user':
+            if not cleaned_data.get('assigned_to'):
+                raise forms.ValidationError('Please select a registered user.')
+
+        return cleaned_data
+
+
+################### End Guest Reviewer Forms #########################
+
+
+################### End Submission Workflow Forms #########################

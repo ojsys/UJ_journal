@@ -1,0 +1,308 @@
+{% extends 'journalapp/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Submission: {{ submission.title|truncatewords:5 }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-bubble { border-radius: 14px; padding: 10px 14px; max-width: 72%; font-size: 14px; }
+    .chat-mine { background: var(--uj-grad); color: #fff; }
+    .chat-theirs { background: var(--uj-surface-2); color: var(--uj-ink); }
+    .modal-content { border: 1px solid var(--uj-border); border-radius: var(--uj-r-lg); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'admin_submission_list' %}" class="uj-nav-link d-inline-flex align-items-center gap-1 mb-3 px-0" style="background:none;">
+        <i class="material-icons" style="font-size:18px;">arrow_back</i> Back to submissions
+    </a>
+
+    <div class="row g-4">
+        <!-- Main -->
+        <div class="col-lg-8">
+            <!-- Info -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                        <div>
+                            <span class="uj-msid mb-2">{{ submission.anonymized_identifier }}</span>
+                            <h4 class="mt-2 mb-0">{{ submission.title|default:"Untitled manuscript" }}</h4>
+                        </div>
+                        {% include 'journalapp/partials/_submission_status.html' with status=submission.status %}
+                    </div>
+                    <div class="row g-3" style="font-size:14px;">
+                        <div class="col-sm-6"><span class="text-muted">Author</span><div class="fw-semibold">{{ submission.author.get_full_name|default:submission.author.email }}</div></div>
+                        <div class="col-sm-6"><span class="text-muted">Journal</span><div class="fw-semibold">{{ submission.journal.name }}</div></div>
+                        <div class="col-sm-6"><span class="text-muted">Submitted</span><div class="fw-semibold">{{ submission.submitted_at|date:"F d, Y H:i" }}</div></div>
+                        <div class="col-sm-6"><span class="text-muted">Last updated</span><div class="fw-semibold">{{ submission.updated_at|date:"F d, Y H:i" }}</div></div>
+                    </div>
+                    {% if submission.cover_letter %}
+                    <div class="mt-3"><span class="uj-kicker">Cover letter</span><p class="uj-panel p-3 mt-2 mb-0" style="box-shadow:none; font-size:14px;">{{ submission.cover_letter }}</p></div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Document versions -->
+            <div class="card mb-4">
+                <div class="card-header">Document versions</div>
+                <div class="card-body p-0">
+                    {% if versions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead><tr><th class="ps-4">Version</th><th>Uploaded by</th><th>Date</th><th>Notes</th><th class="text-end pe-4">Download</th></tr></thead>
+                            <tbody>
+                                {% for version in versions %}
+                                <tr>
+                                    <td class="ps-4"><span class="fw-semibold">V{{ version.version_number }}</span> {% if version.is_final %}<span class="uj-pill uj-pill--success ms-1">Final</span>{% endif %}</td>
+                                    <td style="font-size:13px;">{{ version.uploaded_by.get_full_name|default:version.uploaded_by.email }}</td>
+                                    <td style="font-size:13px;">{{ version.uploaded_at|date:"M d, Y" }}</td>
+                                    <td style="font-size:13px;" class="text-muted">{{ version.notes|truncatewords:10 }}</td>
+                                    <td class="text-end pe-4"><a href="{% url 'download_document' version.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">download</i></a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}<p class="text-muted p-4 mb-0">No document versions available.</p>{% endif %}
+                </div>
+            </div>
+
+            <!-- Assignments -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Assignments</span>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#assignModal"><i class="material-icons" style="font-size:15px;">person_add</i> Assign</button>
+                </div>
+                <div class="card-body p-0">
+                    {% if assignments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead><tr><th class="ps-4">Role</th><th>Assigned to</th><th>Status</th><th>Recommendation</th><th>Date</th></tr></thead>
+                            <tbody>
+                                {% for assignment in assignments %}
+                                <tr>
+                                    <td class="ps-4"><span class="uj-pill">{{ assignment.get_role_display }}</span>{% if assignment.is_guest_assignment %}<span class="uj-pill uj-pill--info ms-1">Guest</span>{% endif %}</td>
+                                    <td style="font-size:14px;">
+                                        {% if assignment.is_guest_assignment %}{{ assignment.guest_reviewer.get_full_name }}<br><small class="text-muted">{{ assignment.guest_reviewer.email }}</small>{% if assignment.guest_reviewer.affiliation %}<br><small class="text-muted">{{ assignment.guest_reviewer.affiliation }}</small>{% endif %}
+                                        {% else %}{{ assignment.assigned_to.get_full_name|default:assignment.assigned_to.email }}{% endif %}
+                                    </td>
+                                    <td>{% if assignment.status == 'active' %}<span class="uj-pill uj-pill--info">Active</span>{% elif assignment.status == 'completed' %}<span class="uj-pill uj-pill--success">Completed</span>{% else %}<span class="uj-pill uj-pill--warn">{{ assignment.get_status_display }}</span>{% endif %}</td>
+                                    <td style="font-size:14px;">{% if assignment.recommendation %}{{ assignment.get_recommendation_display }}{% else %}—{% endif %}</td>
+                                    <td style="font-size:13px;">{{ assignment.assigned_at|date:"M d, Y" }}</td>
+                                </tr>
+                                {% if assignment.feedback or assignment.amended_document %}
+                                <tr><td colspan="5" style="background:var(--uj-bg);">
+                                    {% if assignment.feedback %}<small><strong>Feedback:</strong> {{ assignment.feedback }}</small>{% endif %}
+                                    {% if assignment.amended_document %}<div class="mt-2"><a href="{{ assignment.amended_document.url }}" class="btn btn-outline-primary btn-sm" target="_blank"><i class="material-icons" style="font-size:15px;">download</i> Amended document</a></div>{% endif %}
+                                </td></tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}<p class="text-muted p-4 mb-0">No assignments yet.</p>{% endif %}
+                </div>
+            </div>
+
+            <!-- Chat -->
+            <div class="card mb-4">
+                <div class="card-header">Messages</div>
+                <div class="card-body">
+                    <div id="chat-messages" style="max-height:400px; overflow-y:auto;" class="d-grid gap-2 mb-3">
+                        {% for message in messages %}
+                        <div class="d-flex {% if message.sender == request.user %}justify-content-end{% endif %}">
+                            <div class="chat-bubble {% if message.sender == request.user %}chat-mine{% else %}chat-theirs{% endif %}">
+                                <small class="fw-bold d-block mb-1">{{ message.sender.get_full_name|default:message.sender.email }}</small>
+                                <p class="mb-1">{{ message.content }}</p>
+                                {% if message.attachment %}<a href="{{ message.attachment.url }}" class="{% if message.sender == request.user %}text-white{% endif %}" target="_blank" style="font-size:13px;"><i class="material-icons align-middle" style="font-size:14px;">attach_file</i> Attachment</a>{% endif %}
+                                <small class="d-block {% if message.sender == request.user %}text-white-50{% else %}text-muted{% endif %}" style="font-size:11px;">{{ message.created_at|date:"M d, H:i" }}</small>
+                            </div>
+                        </div>
+                        {% empty %}<p class="text-muted text-center mb-0">No messages yet.</p>{% endfor %}
+                    </div>
+                    <form method="post" action="{% url 'send_message' submission.pk %}" enctype="multipart/form-data" id="message-form">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <textarea name="content" class="form-control" rows="2" placeholder="Type your message…"></textarea>
+                            <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:18px;">send</i></button>
+                        </div>
+                        <input type="file" name="attachment" class="form-control form-control-sm mt-2">
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">Actions</div>
+                <div class="card-body d-grid gap-2">
+                    {% if submission.status in 'pending,in_review,with_editor,revised' %}
+                    <button class="btn btn-primary justify-content-start" data-bs-toggle="modal" data-bs-target="#assignModal"><i class="material-icons" style="font-size:17px;">person_add</i> Assign reviewer/editor</button>
+                    {% endif %}
+                    {% if submission.status != 'rejected' and submission.status != 'published' %}
+                    <button class="btn btn-outline-primary justify-content-start" data-bs-toggle="modal" data-bs-target="#revisionModal"><i class="material-icons" style="font-size:17px;">edit</i> Request revision</button>
+                    {% endif %}
+                    {% if submission.status == 'approved' or submission.status == 'revised' or submission.status == 'with_editor' %}
+                    <a href="{% url 'upload_final_document' submission.pk %}" class="btn btn-success justify-content-start"><i class="material-icons" style="font-size:17px;">publish</i> Upload final &amp; publish</a>
+                    {% endif %}
+                    {% if submission.status != 'rejected' and submission.status != 'published' %}
+                    <button class="btn btn-outline-danger justify-content-start" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="material-icons" style="font-size:17px;">close</i> Reject submission</button>
+                    {% endif %}
+                    {% if submission.published_article %}
+                    <a href="{% url 'article_detail' submission.published_article.pk %}" class="btn btn-outline-primary justify-content-start"><i class="material-icons" style="font-size:17px;">public</i> View published article</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card sticky-side" style="position:sticky; top:90px;">
+                <div class="card-header">Activity log</div>
+                <div class="card-body" style="max-height:400px; overflow-y:auto;">
+                    <ul class="uj-timeline mb-0">
+                        {% for log in logs %}
+                        <li>
+                            <div class="uj-tl-date">{{ log.timestamp|date:"M d, Y H:i" }}</div>
+                            <div style="font-size:13.5px; color:var(--uj-ink);">{{ log.action }}</div>
+                            {% if log.user %}<div class="text-muted" style="font-size:12px;">by {{ log.user.get_full_name|default:log.user.email }}</div>{% endif %}
+                        </li>
+                        {% empty %}<li><span class="text-muted">No activity yet.</span></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Modal -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'assign_submission' submission.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign reviewer/editor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                        <select name="role" id="role" class="form-select" required>
+                            <option value="">— Select role —</option>
+                            <option value="reviewer">Reviewer</option>
+                            <option value="editor">Editor</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="user-search" class="form-label">Search user</label>
+                        <input type="text" id="user-search" class="form-control" placeholder="Search by name or email…">
+                    </div>
+                    <div class="mb-3">
+                        <label for="assigned_to" class="form-label">Assign to <span class="text-danger">*</span></label>
+                        <select name="assigned_to" id="assigned_to" class="form-select" required size="8" style="height:auto;">
+                            <option value="">— Select a user —</option>
+                            {% for user in eligible_users %}
+                            <option value="{{ user.pk }}" data-name="{{ user.get_full_name|lower }}" data-email="{{ user.email|lower }}">
+                                {{ user.get_full_name|default:user.email }}
+                                {% if user.profile.is_reviewer and user.profile.is_editor %} (Reviewer & Editor){% elif user.profile.is_reviewer %} (Reviewer){% elif user.profile.is_editor %} (Editor){% endif %}
+                            </option>
+                            {% empty %}<option value="" disabled>No reviewers or editors available</option>{% endfor %}
+                        </select>
+                        <small class="text-muted">Select a user from the list above</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes (optional)</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Optional notes for the assignee…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:16px;">check</i> Assign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Revision Modal -->
+<div class="modal fade" id="revisionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'request_revision' submission.pk %}">
+                {% csrf_token %}
+                <div class="modal-header"><h5 class="modal-title">Request revision</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Revision notes</label>
+                        <textarea name="notes" class="form-control" rows="5" placeholder="Describe what revisions are needed…"></textarea>
+                        <small class="text-muted">These notes will be emailed to the author.</small>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Send revision request</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'reject_submission' submission.pk %}">
+                {% csrf_token %}
+                <div class="modal-header"><h5 class="modal-title" style="color:var(--uj-rose);">Reject submission</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p style="color:var(--uj-rose);">Are you sure you want to reject this submission?</p>
+                    <div class="mb-3"><label class="form-label">Reason for rejection</label><textarea name="reason" class="form-control" rows="4" placeholder="Explain why the submission is being rejected…"></textarea></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-danger">Reject</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-scroll chat to bottom
+document.addEventListener('DOMContentLoaded', function() {
+    var chatDiv = document.getElementById('chat-messages');
+    if (chatDiv) {
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    }
+
+    var searchInput = document.getElementById('user-search');
+    var userSelect = document.getElementById('assigned_to');
+    var roleSelect = document.getElementById('role');
+
+    if (searchInput && userSelect) {
+        searchInput.addEventListener('input', function() {
+            var searchTerm = this.value.toLowerCase();
+            var options = userSelect.querySelectorAll('option');
+            options.forEach(function(option) {
+                if (option.value === '') { option.style.display = ''; return; }
+                var name = option.getAttribute('data-name') || '';
+                var email = option.getAttribute('data-email') || '';
+                option.style.display = (name.includes(searchTerm) || email.includes(searchTerm)) ? '' : 'none';
+            });
+        });
+    }
+
+    if (roleSelect && userSelect) {
+        roleSelect.addEventListener('change', function() {
+            var selectedRole = this.value;
+            var options = userSelect.querySelectorAll('option');
+            options.forEach(function(option) {
+                if (option.value === '') { option.style.display = ''; return; }
+                var optionText = option.textContent.toLowerCase();
+                if (selectedRole === '') { option.style.display = ''; }
+                else if (selectedRole === 'reviewer') { option.style.display = optionText.includes('reviewer') ? '' : 'none'; }
+                else if (selectedRole === 'editor') { option.style.display = optionText.includes('editor') ? '' : 'none'; }
+            });
+            if (searchInput) { searchInput.value = ''; }
+        });
+    }
+});
+</script>
+{% endblock %}

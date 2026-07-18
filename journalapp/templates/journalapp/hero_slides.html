@@ -1,51 +1,42 @@
 {% extends 'journalapp/base.html' %}
 
+{% block title %}Hero slides{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <h2>Hero Slides</h2>
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="uj-kicker">Admin</span>
+            <h1 class="mt-1 mb-0" style="font-size:30px;">Hero slides</h1>
         </div>
-        <div class="col-md-6 text-end">
-            <a href="{% url 'hero_slide_create' %}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Add New Slide
-            </a>
-        </div>
+        <a href="{% url 'hero_slide_create' %}" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">add</i> Add new slide</a>
     </div>
-    
-    <div class="row">
+
+    <div class="row g-4">
         {% for slide in slides %}
-        <div class="col-md-4 mb-4">
+        <div class="col-md-6 col-lg-4">
             <div class="card h-100">
-                <img src="{{ slide.image.url }}" class="card-img-top" alt="{{ slide.title }}" style="height: 200px; object-fit: cover;">
+                <img src="{{ slide.image.url }}" class="card-img-top" alt="{{ slide.title }}" style="height:200px; object-fit:cover; border-radius:var(--uj-r-lg) var(--uj-r-lg) 0 0;">
                 <div class="card-body">
-                    <h5 class="card-title">{{ slide.title }}</h5>
-                    <p class="card-text">{{ slide.subtitle }}</p>
-                    <p class="card-text">
-                        <small class="text-muted">
-                            Order: {{ slide.order }} | 
-                            Status: {% if slide.is_active %}<span class="text-success">Active</span>{% else %}<span class="text-danger">Inactive</span>{% endif %}
-                        </small>
-                    </p>
-                </div>
-                <div class="card-footer bg-transparent">
-                    <div class="d-flex justify-content-between">
-                        <a href="{% url 'hero_slide_update' slide.pk %}" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-edit"></i> Edit
-                        </a>
-                        <a href="{% url 'hero_slide_delete' slide.pk %}" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-trash"></i> Delete
-                        </a>
+                    <h5 class="mb-1">{{ slide.title }}</h5>
+                    <p class="text-muted mb-2" style="font-size:14px;">{{ slide.subtitle }}</p>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="uj-pill">Order {{ slide.order }}</span>
+                        {% if slide.is_active %}<span class="uj-pill uj-pill--success">Active</span>{% else %}<span class="uj-pill uj-pill--danger">Inactive</span>{% endif %}
                     </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{% url 'hero_slide_update' slide.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">edit</i> Edit</a>
+                    <a href="{% url 'hero_slide_delete' slide.pk %}" class="btn btn-outline-danger btn-sm"><i class="material-icons" style="font-size:15px;">delete</i> Delete</a>
                 </div>
             </div>
         </div>
         {% empty %}
-        <div class="col-12">
-            <div class="alert alert-info">
-                No hero slides found. <a href="{% url 'hero_slide_create' %}">Create your first slide</a>.
-            </div>
-        </div>
+        <div class="col-12"><div class="card"><div class="card-body text-center py-5">
+            <span class="uj-brand-mark mx-auto mb-3" style="width:56px;height:56px;border-radius:16px;"><i class="material-icons">slideshow</i></span>
+            <h5>No hero slides yet</h5>
+            <a href="{% url 'hero_slide_create' %}" class="btn btn-primary mt-2"><i class="material-icons" style="font-size:17px;">add</i> Create your first slide</a>
+        </div></div></div>
         {% endfor %}
     </div>
 </div>

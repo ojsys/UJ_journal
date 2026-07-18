@@ -1,0 +1,73 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}My assignments{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="mb-4">
+        <span class="uj-kicker">Reviewer</span>
+        <h1 class="mt-1 mb-0" style="font-size:30px;">My assignments</h1>
+    </div>
+
+    {% if assignments %}
+    <div class="card mb-4">
+        <div class="card-header">Active assignments</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="ps-4">Manuscript</th><th>Journal</th><th>Role</th><th>Assigned</th><th class="text-end pe-4">Action</th></tr></thead>
+                    <tbody>
+                        {% for assignment in assignments %}
+                        <tr>
+                            <td class="ps-4">
+                                {% if assignment.blinded %}
+                                <span class="uj-msid">{{ assignment.submission.anonymized_identifier }}</span>
+                                {% else %}
+                                <div class="fw-semibold" style="color:var(--uj-ink);">{{ assignment.submission.title|truncatewords:10 }}</div>
+                                <small class="text-muted">by {{ assignment.submission.author.get_full_name|default:assignment.submission.author.email }}</small>
+                                {% endif %}
+                                {% if assignment.notes %}<div class="text-muted mt-1" style="font-size:12.5px;"><strong>Notes:</strong> {{ assignment.notes|truncatewords:16 }}</div>{% endif %}
+                            </td>
+                            <td style="font-size:14px;">{{ assignment.submission.journal.name }}</td>
+                            <td><span class="uj-pill">{{ assignment.get_role_display }}</span>{% if assignment.blinded %}<span class="uj-pill uj-pill--brand ms-1">Blind</span>{% endif %}</td>
+                            <td style="font-size:13px; color:var(--uj-muted-2);">{{ assignment.assigned_at|date:"M d, Y" }}</td>
+                            <td class="text-end pe-4"><a href="{% url 'work_on_submission' assignment.submission.pk %}" class="btn btn-primary btn-sm"><i class="material-icons" style="font-size:15px;">rate_review</i> Work on it</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card"><div class="card-body text-center py-5">
+        <span class="uj-brand-mark mx-auto mb-3" style="width:56px;height:56px;border-radius:16px;"><i class="material-icons">inbox</i></span>
+        <h5>No active assignments</h5>
+        <p class="text-muted mb-0">You have no manuscripts to review right now.</p>
+    </div></div>
+    {% endif %}
+
+    {% if completed %}
+    <div class="card">
+        <div class="card-header">Completed assignments</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="ps-4">Manuscript</th><th>Role</th><th>Recommendation</th><th>Completed</th></tr></thead>
+                    <tbody>
+                        {% for assignment in completed %}
+                        <tr>
+                            <td class="ps-4"><span class="uj-msid">{{ assignment.submission.anonymized_identifier }}</span></td>
+                            <td style="font-size:14px;">{{ assignment.get_role_display }}</td>
+                            <td style="font-size:14px;">{{ assignment.get_recommendation_display|default:"—" }}</td>
+                            <td style="font-size:13px; color:var(--uj-muted-2);">{{ assignment.completed_at|date:"M d, Y" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

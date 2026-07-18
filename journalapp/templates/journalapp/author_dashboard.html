@@ -1,0 +1,189 @@
+{% extends 'journalapp/base.html' %}
+{% load humanize %}
+
+{% block title %}My submissions{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="uj-kicker">Author dashboard</span>
+            <h1 class="mt-1 mb-1" style="font-size:30px;">Welcome, {{ user.get_full_name|default:user.email }}</h1>
+            <p class="text-muted mb-0">Manage your manuscript submissions and track their progress.</p>
+        </div>
+        <a href="{% url 'submission_create' %}" class="btn btn-primary btn-lg">
+            <i class="material-icons" style="font-size:18px;">upload</i> New submission
+        </a>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="uj-stat h-100">
+                <div class="uj-stat__value" style="color:var(--uj-warn-fg);">{{ submission_stats.pending }}</div>
+                <div class="uj-stat__label">Pending review</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="uj-stat h-100">
+                <div class="uj-stat__value" style="color:var(--uj-info-fg);">{{ submission_stats.in_review|add:submission_stats.with_editor }}</div>
+                <div class="uj-stat__label">In review</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="uj-stat h-100">
+                <div class="uj-stat__value" style="color:var(--uj-success-fg);">{{ submission_stats.published }}</div>
+                <div class="uj-stat__label">Published</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="uj-stat h-100">
+                <div class="uj-stat__value">{{ submission_stats.total }}</div>
+                <div class="uj-stat__label">Total submissions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action required -->
+    {% if action_required %}
+    <div class="alert alert-danger mb-4">
+        <h6 class="d-flex align-items-center gap-2 mb-2"><i class="material-icons" style="font-size:19px;">priority_high</i> Action required</h6>
+        <p class="mb-3" style="font-size:14px;">You have {{ action_required.count }} submission{{ action_required.count|pluralize }} requiring revisions.</p>
+        {% for submission in action_required %}
+        <div class="d-flex justify-content-between align-items-center gap-2 py-2" style="border-top:1px solid rgba(190,18,60,0.15);">
+            <span style="font-size:14px;">{{ submission.title|truncatewords:8|default:submission.anonymized_identifier }}</span>
+            <a href="{% url 'submission_revise' submission.pk %}" class="btn btn-danger btn-sm"><i class="material-icons" style="font-size:15px;">edit</i> Submit revision</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Feedback available -->
+    {% if feedback_available %}
+    <div class="alert alert-info mb-4">
+        <h6 class="d-flex align-items-center gap-2 mb-2"><i class="material-icons" style="font-size:19px;">forum</i> Reviewer feedback available</h6>
+        <p class="mb-3" style="font-size:14px;">You have feedback for {{ feedback_available|length }} submission{{ feedback_available|length|pluralize }}.</p>
+        {% for submission in feedback_available %}
+        <div class="d-flex justify-content-between align-items-center gap-2 py-2" style="border-top:1px solid var(--uj-border-indigo);">
+            <div>
+                <span class="fw-semibold" style="font-size:14px;">{{ submission.title|truncatewords:8|default:submission.anonymized_identifier }}</span>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    {% for assignment in submission.assignments.all %}
+                        {% if assignment.status == 'completed' %}
+                            {% if assignment.recommendation == 'approve' %}<span class="uj-pill uj-pill--success">Approve</span>
+                            {% elif assignment.recommendation == 'minor_revision' %}<span class="uj-pill uj-pill--warn">Minor revision</span>
+                            {% elif assignment.recommendation == 'major_revision' %}<span class="uj-pill uj-pill--warn">Major revision</span>
+                            {% elif assignment.recommendation == 'reject' %}<span class="uj-pill uj-pill--danger">Reject</span>{% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            <a href="{% url 'submission_detail' submission.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">visibility</i> View feedback</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Recent submissions -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Recent submissions</span>
+            <a href="{% url 'submission_list' %}" class="btn btn-outline-primary btn-sm">View all</a>
+        </div>
+        <div class="card-body p-0">
+            {% if recent_submissions %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Title</th><th>Journal</th><th>Status</th><th>Submitted</th><th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for submission in recent_submissions %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-semibold" style="color:var(--uj-ink);">{{ submission.title|truncatewords:8|default:"Untitled manuscript" }}</div>
+                                <div class="uj-msid mt-1">{{ submission.anonymized_identifier }}</div>
+                            </td>
+                            <td style="font-size:14px;">{{ submission.journal.name }}</td>
+                            <td>{% include 'journalapp/partials/_submission_status.html' with status=submission.status %}</td>
+                            <td style="font-size:13px; color:var(--uj-muted-2);">{{ submission.submitted_at|naturaltime }}</td>
+                            <td class="text-end pe-4">
+                                <a href="{% url 'submission_detail' submission.pk %}" class="btn btn-outline-primary btn-sm" title="View"><i class="material-icons" style="font-size:15px;">visibility</i></a>
+                                {% if submission.status == 'revision_requested' %}
+                                <a href="{% url 'submission_revise' submission.pk %}" class="btn btn-primary btn-sm" title="Revise"><i class="material-icons" style="font-size:15px;">edit</i></a>
+                                {% endif %}
+                                {% if submission.status == 'published' and submission.published_article %}
+                                <a href="{% url 'article_detail' submission.published_article.pk %}" class="btn btn-success btn-sm" title="View published"><i class="material-icons" style="font-size:15px;">public</i></a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <span class="uj-brand-mark mx-auto mb-3" style="width:56px;height:56px;border-radius:16px;"><i class="material-icons">upload_file</i></span>
+                <h5>No submissions yet</h5>
+                <p class="text-muted">Start by submitting your first manuscript to a journal.</p>
+                <a href="{% url 'submission_create' %}" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">upload</i> Submit your first manuscript</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Published articles -->
+    {% if user_articles and published_count > 0 %}
+    <div class="card mb-4">
+        <div class="card-header">My published articles</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead><tr><th class="ps-4">Title</th><th>Journal</th><th>Published</th><th class="text-end pe-4">Actions</th></tr></thead>
+                    <tbody>
+                        {% for article in user_articles %}{% if article.status == 'published' %}
+                        <tr>
+                            <td class="ps-4 fw-semibold" style="color:var(--uj-ink);">{{ article.title|truncatewords:8 }}</td>
+                            <td style="font-size:14px;">{{ article.journal.name }}</td>
+                            <td style="font-size:13px; color:var(--uj-muted-2);">{{ article.published_at|naturaltime }}</td>
+                            <td class="text-end pe-4">
+                                <a href="{% url 'article_detail' article.pk %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">visibility</i> View</a>
+                                <a href="{% url 'article_pdf' article.pk %}" class="btn btn-light btn-sm"><i class="material-icons" style="font-size:15px;">picture_as_pdf</i> PDF</a>
+                            </td>
+                        </tr>
+                        {% endif %}{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Submission process -->
+    <div class="uj-band">
+        <span class="uj-kicker">How it works</span>
+        <h5 class="mt-2 mb-4">The submission process</h5>
+        <div class="row g-3">
+            <div class="col-6 col-lg-3">
+                <div class="d-flex align-items-center gap-2 mb-2"><span class="uj-brand-mark">1</span><strong style="font-size:14px;">Submit</strong></div>
+                <p class="text-muted mb-0" style="font-size:13px;">Upload your Word document.</p>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="d-flex align-items-center gap-2 mb-2"><span class="uj-brand-mark">2</span><strong style="font-size:14px;">Review</strong></div>
+                <p class="text-muted mb-0" style="font-size:13px;">Blind peer review by experts.</p>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="d-flex align-items-center gap-2 mb-2"><span class="uj-brand-mark">3</span><strong style="font-size:14px;">Revise</strong></div>
+                <p class="text-muted mb-0" style="font-size:13px;">Make requested changes.</p>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="d-flex align-items-center gap-2 mb-2"><span class="uj-brand-mark">4</span><strong style="font-size:14px;">Publish</strong></div>
+                <p class="text-muted mb-0" style="font-size:13px;">Your article goes live.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

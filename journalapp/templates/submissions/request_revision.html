@@ -1,0 +1,63 @@
+{% extends 'journalapp/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Request revision{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center"><div class="col-lg-8">
+        <div class="mb-4">
+            <span class="uj-kicker">Editorial decision</span>
+            <h1 class="mt-1 mb-0" style="font-size:28px;">Request revision</h1>
+        </div>
+
+        <div class="alert alert-info">
+            <h6 class="mb-1"><i class="material-icons align-middle me-1" style="font-size:18px;">edit_note</i> Request changes</h6>
+            <p class="mb-0" style="font-size:14px;">Provide notes explaining what revisions are needed. The author will receive these notes and can submit a revised document.</p>
+        </div>
+
+        <div class="uj-panel p-3 mb-4" style="box-shadow:none;">
+            <span class="uj-msid">{{ submission.anonymized_identifier }}</span>
+            <h5 class="mt-2 mb-1">{{ submission.title|default:"Untitled manuscript" }}</h5>
+            <small class="text-muted">{{ submission.author.get_full_name|default:submission.author.email }} · {{ submission.journal.name }}</small>
+        </div>
+
+        {% if completed_assignments %}
+        <div class="card mb-4">
+            <div class="card-header">Reviewer feedback summary</div>
+            <div class="card-body p-0">
+                {% for assignment in completed_assignments %}
+                <div class="p-3" {% if not forloop.last %}style="border-bottom:1px solid var(--uj-border-2);"{% endif %}>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><strong style="font-size:14px;">{{ assignment.reviewer_name }}</strong> <span class="text-muted" style="font-size:13px;">({{ assignment.get_role_display }})</span></div>
+                        {% if assignment.recommendation == 'approve' %}<span class="uj-pill uj-pill--success">Approve</span>
+                        {% elif assignment.recommendation == 'minor_revision' %}<span class="uj-pill uj-pill--warn">Minor revision</span>
+                        {% elif assignment.recommendation == 'major_revision' %}<span class="uj-pill uj-pill--warn">Major revision</span>
+                        {% elif assignment.recommendation == 'reject' %}<span class="uj-pill uj-pill--danger">Reject</span>
+                        {% else %}<span class="uj-pill">No recommendation</span>{% endif %}
+                    </div>
+                    {% if assignment.feedback %}<p class="mb-0 mt-2" style="font-size:14px;">{{ assignment.feedback|truncatewords:30 }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card"><div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="id_notes" class="form-label">Revision notes for author</label>
+                    <textarea name="notes" class="form-control" id="id_notes" rows="6" placeholder="Explain what changes are needed. Be specific about which sections need revision and why…" required></textarea>
+                    <small class="text-muted">These notes will be visible to the author.</small>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">send</i> Send revision request</button>
+                    <a href="{% url 'admin_submission_detail' submission.pk %}" class="btn btn-light">Cancel</a>
+                    <a href="{% url 'approve_submission' submission.pk %}" class="btn btn-outline-primary"><i class="material-icons" style="font-size:17px;">check</i> Approve instead</a>
+                </div>
+            </form>
+        </div></div>
+    </div></div>
+</div>
+{% endblock %}

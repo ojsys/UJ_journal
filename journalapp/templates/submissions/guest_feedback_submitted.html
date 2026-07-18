@@ -1,0 +1,51 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Review submitted — thank you{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row"><div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <span class="uj-brand-mark mx-auto mb-3" style="width:64px;height:64px;border-radius:18px; background:var(--uj-success-bg); color:var(--uj-success-fg);"><i class="material-icons" style="font-size:32px;">check_circle</i></span>
+                    <h2 class="mb-1">Review submitted successfully</h2>
+                    <p class="lead text-muted mb-0" style="font-size:17px;">Thank you, {{ guest_reviewer.get_full_name }}!</p>
+                </div>
+
+                <div class="alert alert-success">
+                    <h6 class="mb-2"><i class="material-icons align-middle me-1" style="font-size:18px;">info</i> What happens next?</h6>
+                    <ul class="mb-0" style="font-size:14px;">
+                        <li>Your review has been recorded</li>
+                        <li>A confirmation email was sent to <strong>{{ guest_reviewer.email }}</strong></li>
+                        <li>The editorial team will consider all feedback before deciding</li>
+                        <li>Your contribution remains confidential</li>
+                    </ul>
+                </div>
+
+                <div class="uj-panel p-3" style="box-shadow:none;">
+                    <span class="uj-kicker">Review details</span>
+                    <div class="mt-2 d-grid gap-2" style="font-size:14px;">
+                        <div class="d-flex justify-content-between align-items-center"><span class="text-muted">Manuscript ID</span><span class="uj-msid">{{ submission.anonymized_identifier }}</span></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Journal</span><span class="fw-semibold">{{ submission.journal.name }}</span></div>
+                        <div class="d-flex justify-content-between align-items-center"><span class="text-muted">Your recommendation</span>
+                            {% if assignment.recommendation == 'approve' %}<span class="uj-pill uj-pill--success">Approve</span>
+                            {% elif assignment.recommendation == 'minor_revision' %}<span class="uj-pill uj-pill--info">Minor revision</span>
+                            {% elif assignment.recommendation == 'major_revision' %}<span class="uj-pill uj-pill--warn">Major revision</span>
+                            {% elif assignment.recommendation == 'reject' %}<span class="uj-pill uj-pill--danger">Reject</span>
+                            {% else %}<span class="uj-pill">{{ assignment.get_recommendation_display }}</span>{% endif %}
+                        </div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Submitted</span><span class="fw-semibold">{{ assignment.completed_at|date:"F d, Y H:i" }}</span></div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <a href="{% url 'guest_review_access' guest_reviewer.invitation_token %}" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">arrow_back</i> Back to your assignments</a>
+                </div>
+                <hr class="uj-divider my-4">
+                <p class="text-center text-muted mb-0" style="font-size:13px;">Questions? Contact us at <a href="mailto:contact@unijosjournals.edu.ng">contact@unijosjournals.edu.ng</a></p>
+            </div>
+        </div>
+    </div></div>
+</div>
+{% endblock %}

@@ -1,4 +1,4 @@
-#!/Users/apple/Desktop/uj_journal/env/bin/python3.12
+#!/Users/Apple/projects/uj_journal/env/bin/python3.13
 # -*- coding: utf-8 -*-
 import re
 import sys

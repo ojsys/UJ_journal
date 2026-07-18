@@ -1,0 +1,66 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}Welcome, {{ guest_reviewer.first_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row"><div class="col-lg-10 offset-lg-1">
+        <!-- Welcome -->
+        <div class="uj-band mb-4">
+            <span class="uj-pill uj-pill--brand mb-2"><i class="material-icons" style="font-size:15px;">verified_user</i> Guest reviewer access</span>
+            <h1 class="mt-1 mb-2" style="font-size:30px;">Welcome, {{ guest_reviewer.get_full_name }}</h1>
+            <p class="text-muted mb-0">Thank you for serving as a guest reviewer for the University of Jos Journal System.</p>
+        </div>
+
+        <!-- Profile -->
+        <div class="card mb-4">
+            <div class="card-header">Your profile</div>
+            <div class="card-body">
+                <div class="row g-3" style="font-size:14px;">
+                    <div class="col-md-6"><span class="text-muted">Email</span><div class="fw-semibold">{{ guest_reviewer.email }}</div></div>
+                    {% if guest_reviewer.affiliation %}<div class="col-md-6"><span class="text-muted">Affiliation</span><div class="fw-semibold">{{ guest_reviewer.affiliation }}</div></div>{% endif %}
+                    {% if guest_reviewer.expertise_areas %}<div class="col-md-12"><span class="text-muted">Expertise</span><div class="fw-semibold">{{ guest_reviewer.expertise_areas }}</div></div>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Assignments -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center"><span>Your review assignments</span><span class="uj-pill uj-pill--brand">{{ assignments.count }}</span></div>
+            <div class="card-body">
+                {% if assignments %}
+                <div class="row g-3">
+                    {% for assignment in assignments %}
+                    <div class="col-md-6">
+                        <div class="uj-panel h-100 p-3 d-flex flex-column">
+                            <div class="mb-2">
+                                {% if assignment.blinded %}<span class="uj-msid"><i class="material-icons" style="font-size:14px;">visibility_off</i> {{ assignment.submission.anonymized_identifier }}</span>
+                                {% else %}<h6 class="mb-0">{{ assignment.submission.title|truncatewords:10 }}</h6>{% endif %}
+                            </div>
+                            <div class="d-flex flex-column gap-1 mb-3" style="font-size:13px; color:var(--uj-muted-2);">
+                                <span><i class="material-icons align-middle" style="font-size:15px;">menu_book</i> {{ assignment.submission.journal.name }}</span>
+                                <span><i class="material-icons align-middle" style="font-size:15px;">event</i> Assigned {{ assignment.assigned_at|date:"M d, Y" }}</span>
+                            </div>
+                            {% if assignment.notes %}<div class="alert alert-info py-2 px-3 mb-3" style="font-size:13px;"><strong>Notes:</strong> {{ assignment.notes|truncatewords:15 }}</div>{% endif %}
+                            <a href="{% url 'guest_work_on_submission' assignment.submission.pk assignment.access_token %}" class="btn btn-primary btn-sm w-100 justify-content-center mt-auto"><i class="material-icons" style="font-size:15px;">rate_review</i> Start review</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <span class="uj-brand-mark mx-auto mb-3" style="width:56px;height:56px;border-radius:16px; background:var(--uj-success-bg); color:var(--uj-success-fg);"><i class="material-icons">check_circle</i></span>
+                    <h5>All reviews complete</h5>
+                    <p class="text-muted mb-0">You don't have any pending review assignments at this time.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-4">
+            <h6 class="mb-1"><i class="material-icons align-middle me-1" style="font-size:18px;">help_outline</i> Need help?</h6>
+            <p class="mb-0" style="font-size:14px;">For questions or technical issues, contact the editorial office at <a href="mailto:contact@unijosjournals.edu.ng" class="alert-link">contact@unijosjournals.edu.ng</a>.</p>
+        </div>
+    </div></div>
+</div>
+{% endblock %}

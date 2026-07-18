@@ -4,318 +4,103 @@
 
 {% block extra_css %}
 <style>
-    .page-header {
-        background: linear-gradient(135deg, var(--primary-color) 0%, #1976D2 100%);
-        color: white;
-        padding: 3rem 0;
-        margin-bottom: 2rem;
-    }
-    
-    .filter-card {
-        margin-bottom: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    
-    .filter-card .card-header {
-        background-color: #f8f9fa;
-        border-bottom: none;
-        padding: 1rem 1.5rem;
-    }
-    
-    .filter-card .card-body {
-        padding: 1.5rem;
-    }
-    
-    .article-card {
-        transition: all 0.3s ease;
-        height: 100%;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    
-    .article-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    }
-    
-    .article-card .card-title {
-        font-weight: 600;
-        color: var(--primary-color);
-    }
-    
-    .article-card .card-body {
-        padding: 1.5rem;
-    }
-    
-    .article-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .article-meta-item {
-        display: flex;
-        align-items: center;
-        font-size: 0.9rem;
-        color: #6c757d;
-    }
-    
-    .pagination-container {
-        margin-top: 2rem;
-    }
-    
-    .page-item.active .page-link {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-    }
-    
-    .page-link {
-        color: var(--primary-color);
-    }
-    
-    .department-filter-btn {
-        margin-bottom: 0.5rem;
-        text-align: left;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        transition: all 0.3s ease;
-    }
-    
-    .department-filter-btn.active {
-        background-color: var(--primary-color);
-        color: white;
-    }
-    
-    .department-filter-btn:hover:not(.active) {
-        background-color: #f8f9fa;
-    }
-    
-    .search-form {
-        position: relative;
-    }
-    
-    .search-form .form-control {
-        padding-left: 2.5rem;
-        border-radius: 50px;
-    }
-    
-    .search-icon {
-        position: absolute;
-        left: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #6c757d;
-    }
+    .dept-btn { text-align:left; justify-content:flex-start; width:100%; }
+    .dept-btn.active { background: var(--uj-grad); color:#fff; border:none; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 mx-auto text-center">
-                <h1 class="display-4">Academic Articles</h1>
-                <p class="lead">Explore published research from University of Jos academics</p>
-                
-                <!-- Search Form -->
-                <div class="mt-4">
-                    <form method="get" action="{% url 'article_list' %}" class="search-form">
-                        <div class="input-group">
-                            <span class="search-icon">
-                                <i class="material-icons">search</i>
-                            </span>
-                            <input type="text" name="q" class="form-control" placeholder="Search articles..." value="{{ request.GET.q }}">
-                            <button class="btn btn-light" type="submit">Search</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+<div class="container py-4">
+    <!-- Header + search -->
+    <div class="uj-band mb-4">
+        <span class="uj-kicker">Explore</span>
+        <h1 class="mt-1 mb-2" style="font-size:32px;">Academic articles</h1>
+        <p class="text-muted mb-3">Published research from University of Jos academics.</p>
+        <form method="get" action="{% url 'article_list' %}" class="d-flex gap-2" style="max-width:520px;">
+            <input type="text" name="q" class="form-control" placeholder="Search articles…" value="{{ request.GET.q }}">
+            <button class="btn btn-primary" type="submit"><i class="material-icons" style="font-size:18px;">search</i> Search</button>
+        </form>
     </div>
-</div>
 
-<div class="container">
-    <div class="row">
-        <!-- Filters Sidebar -->
+    <div class="row g-4">
+        <!-- Filters -->
         <div class="col-lg-3">
-            <div class="card filter-card">
-                <div class="card-header d-flex align-items-center">
-                    <i class="material-icons me-2">filter_list</i>
-                    <h5 class="mb-0">Filters</h5>
-                </div>
+            <div class="card">
+                <div class="card-header"><i class="material-icons align-middle me-1" style="font-size:18px;">filter_list</i> Filters</div>
                 <div class="card-body">
                     <form method="get" action="{% url 'article_list' %}" id="filter-form">
-                        <!-- Keep search query when filtering -->
-                        {% if request.GET.q %}
-                        <input type="hidden" name="q" value="{{ request.GET.q }}">
-                        {% endif %}
-                        
-                        <!-- Department Filter -->
+                        {% if request.GET.q %}<input type="hidden" name="q" value="{{ request.GET.q }}">{% endif %}
                         <div class="mb-4">
-                            <h6 class="mb-3">Departments</h6>
-                            <div class="d-grid">
-                                <a href="{% url 'article_list' %}{% if request.GET.q %}?q={{ request.GET.q }}{% endif %}" 
-                                   class="btn department-filter-btn {% if not request.GET.department %}active{% endif %}">
-                                    All Departments
-                                </a>
+                            <span class="uj-kicker d-block mb-2">Departments</span>
+                            <div class="d-grid gap-1">
+                                <a href="{% url 'article_list' %}{% if request.GET.q %}?q={{ request.GET.q }}{% endif %}" class="btn btn-light btn-sm dept-btn {% if not request.GET.department %}active{% endif %}">All departments</a>
                                 {% for department in departments %}
-                                <a href="{% url 'article_list' %}?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}department={{ department.id }}" 
-                                   class="btn department-filter-btn {% if request.GET.department == department.id|stringformat:'i' %}active{% endif %}">
-                                    {{ department.name }}
-                                </a>
+                                <a href="{% url 'article_list' %}?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}department={{ department.id }}" class="btn btn-light btn-sm dept-btn {% if request.GET.department == department.id|stringformat:'i' %}active{% endif %}">{{ department.name }}</a>
                                 {% endfor %}
                             </div>
                         </div>
-                        
-                        <!-- Category Filter -->
                         <div class="mb-4">
-                            <h6 class="mb-3">Categories</h6>
+                            <span class="uj-kicker d-block mb-2">Category</span>
                             <select name="category" class="form-select" onchange="document.getElementById('filter-form').submit()">
-                                <option value="">All Categories</option>
-                                {% for category in filter.form.category.field.choices %}
-                                {% if category.0 %}
-                                <option value="{{ category.0 }}" {% if request.GET.category == category.0|stringformat:'i' %}selected{% endif %}>
-                                    {{ category.1 }}
-                                </option>
-                                {% endif %}
-                                {% endfor %}
+                                <option value="">All categories</option>
+                                {% for category in filter.form.category.field.choices %}{% if category.0 %}
+                                <option value="{{ category.0 }}" {% if request.GET.category == category.0|stringformat:'i' %}selected{% endif %}>{{ category.1 }}</option>
+                                {% endif %}{% endfor %}
                             </select>
                         </div>
-                        
-                        <!-- Date Range Filter -->
                         <div class="mb-4">
-                            <h6 class="mb-3">Publication Date</h6>
-                            <div class="mb-3">
-                                <label class="form-label">From</label>
-                                <input type="date" name="published_at_after" class="form-control" value="{{ request.GET.published_at_after }}">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">To</label>
-                                <input type="date" name="published_at_before" class="form-control" value="{{ request.GET.published_at_before }}">
-                            </div>
+                            <span class="uj-kicker d-block mb-2">Publication date</span>
+                            <label class="form-label">From</label>
+                            <input type="date" name="published_at_after" class="form-control mb-2" value="{{ request.GET.published_at_after }}">
+                            <label class="form-label">To</label>
+                            <input type="date" name="published_at_before" class="form-control" value="{{ request.GET.published_at_before }}">
                         </div>
-                        
-                        <!-- Submit Button -->
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="material-icons me-1" style="font-size: 16px;">filter_alt</i> Apply Filters
-                            </button>
-                        </div>
+                        <div class="d-grid"><button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:16px;">filter_alt</i> Apply filters</button></div>
                     </form>
                 </div>
             </div>
         </div>
-        
-        <!-- Article List -->
+
+        <!-- Results -->
         <div class="col-lg-9">
-            <!-- Filter Summary -->
             {% if request.GET %}
-            <div class="alert alert-light d-flex align-items-center mb-4">
-                <i class="material-icons me-2">info</i>
-                <div>
-                    Showing filtered results
-                    {% if request.GET.q %} for "<strong>{{ request.GET.q }}</strong>"{% endif %}
-                    {% if selected_department %} in <strong>{{ selected_department.name }}</strong> department{% endif %}
-                    <a href="{% url 'article_list' %}" class="ms-2 btn btn-sm btn-outline-secondary">
-                        <i class="material-icons" style="font-size: 14px;">clear</i> Clear Filters
-                    </a>
-                </div>
+            <div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+                <div><i class="material-icons align-middle me-1" style="font-size:18px;">info</i> Showing filtered results{% if request.GET.q %} for "<strong>{{ request.GET.q }}</strong>"{% endif %}{% if selected_department %} in <strong>{{ selected_department.name }}</strong>{% endif %}</div>
+                <a href="{% url 'article_list' %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:14px;">clear</i> Clear filters</a>
             </div>
             {% endif %}
-            
-            <!-- Article Cards -->
-            <div class="row">
+
+            <div class="row g-4">
                 {% for article in articles %}
-                <div class="col-md-6 mb-4">
-                    <div class="card article-card h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ article.title }}</h5>
-                            <div class="article-meta">
-                                <div class="article-meta-item">
-                                    <i class="material-icons me-1" style="font-size: 16px;">person</i>
-                                    {{ article.author.get_full_name|default:article.author.first_name }}
-                                </div>
-                                <div class="article-meta-item">
-                                    <i class="material-icons me-1" style="font-size: 16px;">school</i>
-                                    {{ article.department.name }}
-                                </div>
-                                <div class="article-meta-item">
-                                    <i class="material-icons me-1" style="font-size: 16px;">calendar_today</i>
-                                    {{ article.published_at|date:"M d, Y" }}
-                                </div>
+                <div class="col-md-6">
+                    <a href="{% url 'article_detail' article.pk %}" class="card card-hover h-100 text-decoration-none">
+                        <div class="card-body d-flex flex-column">
+                            {% if article.journal %}<span class="uj-kicker mb-2">{{ article.journal.name }}</span>{% endif %}
+                            <h5 class="mb-2" style="color:var(--uj-ink);">{{ article.title }}</h5>
+                            <div class="d-flex flex-wrap gap-3 mb-2" style="font-size:12.5px; color:var(--uj-muted-2);">
+                                <span class="d-inline-flex align-items-center gap-1"><i class="material-icons" style="font-size:15px;">person</i> {{ article.author.get_full_name|default:article.author.first_name }}</span>
+                                <span class="d-inline-flex align-items-center gap-1"><i class="material-icons" style="font-size:15px;">event</i> {{ article.published_at|date:"M d, Y" }}</span>
                             </div>
-                            <p class="card-text">{{ article.abstract|truncatewords:25 }}</p>
+                            <p class="text-muted mb-0" style="font-size:14px;">{{ article.abstract|truncatewords:25|safe }}</p>
                         </div>
-                        <div class="card-footer bg-transparent border-top-0">
-                            <a href="{% url 'article_detail' article.pk %}" class="btn btn-primary">
-                                <i class="material-icons me-1" style="font-size: 16px;">visibility</i> Read More
-                            </a>
-                            {% if article.document %}
-                            <a href="{{ article.document.url }}" class="btn btn-outline-primary ms-2" download>
-                                <i class="material-icons me-1" style="font-size: 16px;">download</i> Download
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
+                    </a>
                 </div>
                 {% empty %}
-                <div class="col-12">
-                    <div class="alert alert-info d-flex align-items-center">
-                        <i class="material-icons me-2">info</i>
-                        No articles found matching your criteria.
-                    </div>
-                </div>
+                <div class="col-12"><div class="alert alert-info d-flex align-items-center"><i class="material-icons me-2">info</i> No articles found matching your criteria.</div></div>
                 {% endfor %}
             </div>
-            
-            <!-- Pagination -->
+
             {% if is_paginated %}
-            <div class="pagination-container d-flex justify-content-center">
-                <nav aria-label="Page navigation">
-                    <ul class="pagination">
-                        {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
-                                <span aria-hidden="true">&laquo;&laquo;</span>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
-                                <span aria-hidden="true">&laquo;</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                            <li class="page-item active">
-                                <span class="page-link">{{ num }}</span>
-                            </li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                            <li class="page-item">
-                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
-                            </li>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
-                                <span aria-hidden="true">&raquo;</span>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
-                                <span aria-hidden="true">&raquo;&raquo;</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            </div>
+            <nav class="mt-4 d-flex justify-content-center"><ul class="pagination">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">‹</a></li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}<li class="page-item"><a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a></li>{% endif %}
+                {% endfor %}
+                {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">›</a></li>{% endif %}
+            </ul></nav>
             {% endif %}
         </div>
     </div>
