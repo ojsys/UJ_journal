@@ -1,0 +1,293 @@
+# Deploying UniJos Journal System to cPanel
+
+This guide deploys the Django app to cPanel using **Setup Python App** (Phusion
+Passenger). It assumes a typical **shared cPanel** plan with **MySQL/MariaDB**,
+**AutoSSL**, and SSH or Terminal access.
+
+> ⚠️ **Read Section 0 first.** The current `journalpro/settings/production.py`
+> requires **Redis**, **PostgreSQL**, and **WhiteNoise**, which are *not* in
+> `requirements.txt` and usually *not* available on shared cPanel. The app **will
+> not boot** on cPanel until the adjustments in Section 0 are made.
+
+---
+
+## 0. Required code changes before you deploy
+
+Make these three changes, commit, and push (or re-upload). They are the difference
+between a working deploy and a 500 on first request.
+
+### 0.1 Add the packages cPanel actually needs to `requirements.txt`
+
+Append:
+
+```
+whitenoise==6.7.0
+mysqlclient==2.2.4        # only if using MySQL/MariaDB (recommended on cPanel)
+gunicorn==22.0.0          # optional; Passenger doesn't need it
+```
+
+- Remove/skip `psycopg2` assumptions — there is **no PostgreSQL** on most cPanel plans.
+- If your host *does* offer PostgreSQL, add `psycopg2-binary==2.9.9` instead of `mysqlclient` and keep the Postgres engine.
+
+### 0.2 Switch the database engine to MySQL
+
+In `journalpro/settings/production.py`, replace the `DATABASES` block:
+
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='3306'),
+        'CONN_MAX_AGE': 60,
+        'OPTIONS': {'charset': 'utf8mb4'},
+    }
+}
+```
+
+### 0.3 Remove the Redis dependency (no Redis on shared cPanel)
+
+Still in `production.py`, replace the `CACHES` and session settings so nothing
+depends on Redis (otherwise **login/sessions break**):
+
+```python
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache_table',
+    }
+}
+
+# Store sessions in the database, not the cache.
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+```
+
+You will create the cache table once with `manage.py createcachetable` (Step 7).
+
+> **WhiteNoise** (added in 0.1) is what serves your CSS/JS through Passenger, so
+> you don't have to wire up static hosting separately. It's already referenced in
+> `production.py` — it just needed to be installed.
+
+### 0.4 (Optional) relax HTTPS redirect until SSL is active
+
+`SECURE_SSL_REDIRECT` defaults to `True`. Keep it `True` **after** AutoSSL is
+issued. If you hit a redirect loop before SSL is ready, set `SECURE_SSL_REDIRECT=False`
+in `.env` temporarily.
+
+---
+
+## 1. Create the MySQL database (cPanel → MySQL® Databases)
+
+1. **Create Database** → e.g. `unijos_journal`. cPanel prefixes it: `cpuser_unijos_journal`.
+2. **Create User** → e.g. `unijos_admin` with a strong password. Actual: `cpuser_unijos_admin`.
+3. **Add User to Database** → grant **ALL PRIVILEGES**.
+4. Note the final names — you'll put them in `.env`:
+   - `DB_NAME=cpuser_unijos_journal`
+   - `DB_USER=cpuser_unijos_admin`
+   - `DB_HOST=localhost`
+   - `DB_PORT=3306`
+
+---
+
+## 2. Upload the project
+
+Pick one:
+
+**Option A — Git (preferred).** cPanel → **Git™ Version Control** → Create →
+clone your repo into e.g. `/home/cpuser/unijos_journal`.
+
+**Option B — Zip upload.** Zip the project **without** `env/`, `db.sqlite3`,
+`__pycache__/`, and `.git/`. Upload via **File Manager** into
+`/home/cpuser/unijos_journal` and Extract.
+
+> Do **not** upload the local `env/` virtualenv — cPanel builds its own.
+
+---
+
+## 3. Create the Python application (cPanel → Setup Python App)
+
+1. **Create Application**.
+2. **Python version**: choose 3.11 or 3.12 (matches the codebase).
+3. **Application root**: `unijos_journal` (the folder from Step 2).
+4. **Application URL**: your domain or subdomain (e.g. `journals.example.edu.ng`).
+5. **Application startup file**: `passenger_wsgi.py`.
+6. **Application Entry point**: `application`.
+7. Click **Create**. cPanel creates a virtualenv and shows a command like:
+
+   ```
+   source /home/cpuser/virtualenv/unijos_journal/3.12/bin/activate && cd /home/cpuser/unijos_journal
+   ```
+
+   Copy that command — you'll use it in the terminal.
+
+The repo already includes a `passenger_wsgi.py` that loads
+`journalpro.settings.production`. If cPanel overwrote it with a stub, paste the
+repo version back in.
+
+---
+
+## 4. Create the `.env` file
+
+In the application root (`/home/cpuser/unijos_journal`), copy `.env.example` to
+`.env` (File Manager → Copy, then rename, or `cp .env.example .env` in Terminal)
+and fill it in:
+
+```dotenv
+SECRET_KEY=generate-a-long-random-50-char-string
+DEBUG=False
+ALLOWED_HOSTS=journals.example.edu.ng,www.journals.example.edu.ng
+
+DB_NAME=cpuser_unijos_journal
+DB_USER=cpuser_unijos_admin
+DB_PASSWORD=your-db-password
+DB_HOST=localhost
+DB_PORT=3306
+
+EMAIL_HOST=mail.example.edu.ng
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=noreply@example.edu.ng
+EMAIL_HOST_PASSWORD=your-mailbox-password
+DEFAULT_FROM_EMAIL=noreply@example.edu.ng
+SERVER_EMAIL=server@example.edu.ng
+ADMIN_EMAIL=admin@example.edu.ng
+
+# Leave True once AutoSSL is active; set False temporarily if you get a redirect loop.
+SECURE_SSL_REDIRECT=True
+```
+
+Generate a secret key:
+
+```bash
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+> `python-decouple` reads this `.env` automatically. Keep `.env` out of Git.
+
+---
+
+## 5. Install dependencies
+
+Open cPanel → **Terminal** (or SSH) and run the activation command from Step 3,
+then install:
+
+```bash
+source /home/cpuser/virtualenv/unijos_journal/3.12/bin/activate && cd /home/cpuser/unijos_journal
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+If `mysqlclient` fails to build, ask the host to enable MySQL dev headers, or use
+the pure-Python driver instead: `pip install PyMySQL` and add this to the top of
+`journalpro/__init__.py`:
+
+```python
+import pymysql
+pymysql.install_as_MySQLdb()
+```
+
+---
+
+## 6. Point Passenger at the right settings (Environment Variables)
+
+In the **Setup Python App** screen for this app, add an environment variable so
+Passenger and management commands agree:
+
+- `DJANGO_SETTINGS_MODULE = journalpro.settings.production`
+
+(`passenger_wsgi.py` already sets this as a default, but setting it explicitly is
+cleaner and also affects the Terminal.)
+
+---
+
+## 7. Django one-time setup
+
+With the virtualenv active in the app root:
+
+```bash
+export DJANGO_SETTINGS_MODULE=journalpro.settings.production
+python manage.py createcachetable          # needed for DB cache (Section 0.3)
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py collectstatic --noinput
+mkdir -p logs media                        # logging + uploads dirs
+```
+
+- `collectstatic` gathers everything into `staticfiles/`, which **WhiteNoise**
+  serves. No public_html symlink is required for static files.
+
+---
+
+## 8. Media (user uploads)
+
+Uploads go to `MEDIA_ROOT = <app>/media/` and are served at `/media/`. WhiteNoise
+does **not** serve media, so expose it via the web root:
+
+1. Ensure the `media/` folder exists and is writable (`chmod 755 media`).
+2. Create a symlink from the domain's document root to the media folder, e.g.:
+
+   ```bash
+   ln -s /home/cpuser/unijos_journal/media /home/cpuser/public_html/media
+   ```
+
+   (Adjust `public_html` to the correct docroot for your domain/subdomain.)
+
+   *Alternative:* add a media route in `journalpro/urls.py` guarded by settings, or
+   move media to cloud storage (S3) using the commented block in `production.py`.
+
+---
+
+## 9. Start it up
+
+1. Back in **Setup Python App**, click **Restart**.
+2. Visit `https://journals.example.edu.ng/`.
+3. cPanel → **SSL/TLS Status** → run **AutoSSL** for the domain if HTTPS isn't live.
+4. Confirm the home page, `/admin/`, login, and a submission flow all load.
+
+Whenever you change `.env`, settings, or Python code: **Restart** the app (or
+`touch tmp/restart.txt` in the app root).
+
+---
+
+## 10. Redeploy / update workflow
+
+```bash
+source /home/cpuser/virtualenv/unijos_journal/3.12/bin/activate && cd /home/cpuser/unijos_journal
+git pull                      # or re-upload changed files
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+mkdir -p tmp && touch tmp/restart.txt      # graceful Passenger restart
+```
+
+---
+
+## 11. Troubleshooting
+
+| Symptom | Likely cause / fix |
+|---|---|
+| **500 on every page, blank** | Check `logs/django_error.log` and cPanel's stderr log. Usually a missing package or a bad `.env` value. |
+| `ModuleNotFoundError: redis` / cache errors | Section 0.3 not applied — remove the Redis cache + cache sessions. |
+| `No module named 'MySQLdb'` | `mysqlclient` not installed, or use the PyMySQL shim (Step 5). |
+| `django.db.utils.OperationalError` | Wrong `DB_*` values, or user not added to the DB with privileges (Step 1). |
+| CSS/JS missing (unstyled site) | Run `collectstatic`; confirm `whitenoise` installed and its middleware line is present in `production.py`. |
+| Uploaded images 404 | Media symlink missing (Step 8) or `media/` not writable. |
+| `DisallowedHost` | Add the exact domain(s) to `ALLOWED_HOSTS` in `.env`, then restart. |
+| Infinite HTTPS redirect | Set `SECURE_SSL_REDIRECT=False` until AutoSSL is issued, then flip back to `True`. |
+| CSRF "Origin checking failed" | Add `CSRF_TRUSTED_ORIGINS=https://journals.example.edu.ng` handling (add to `production.py` from env) if on Django's stricter CSRF. |
+| Changes not showing | Restart the app / `touch tmp/restart.txt`. |
+
+---
+
+## 12. Post-deploy checklist
+
+- [ ] `DEBUG=False`, unique `SECRET_KEY`, correct `ALLOWED_HOSTS`
+- [ ] AutoSSL active; site loads over HTTPS
+- [ ] `migrate`, `createcachetable`, `createsuperuser`, `collectstatic` all run
+- [ ] Static assets and uploaded media load
+- [ ] Test email sends (registration / reviewer invitation)
+- [ ] Site Settings → brand colors/logo verified in the admin
+- [ ] `.env`, `db.sqlite3`, and `env/` are **not** in the repo/upload

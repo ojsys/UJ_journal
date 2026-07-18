@@ -1,2 +1,31 @@
 # Environment variables
 .env
+.env.*
+!.env.example
+
+# Virtual environments
+env/
+venv/
+.venv/
+env_edit/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+/staticfiles/
+/media/
+
+# cPanel / Passenger
+tmp/restart.txt
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
