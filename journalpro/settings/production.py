@@ -164,26 +164,20 @@ LOGGING = {
 }
 
 
-# Cache settings for production (Redis recommended)
+# Cache settings for production.
+# Database-backed cache — no Redis/Memcached needed (works on shared cPanel).
+# Create the table once with: python manage.py createcachetable
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache_table',
     }
 }
 
-# Fallback to database cache if Redis is not available
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-#         'LOCATION': 'django_cache_table',
-#     }
-# }
 
-
-# Session settings for production
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+# Session settings for production.
+# Store sessions in the database, not the cache (avoids any Redis dependency).
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 
 # File upload settings

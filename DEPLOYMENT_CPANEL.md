@@ -4,10 +4,11 @@ This guide deploys the Django app to cPanel using **Setup Python App** (Phusion
 Passenger). It assumes a typical **shared cPanel** plan with **MySQL/MariaDB**,
 **AutoSSL**, and SSH or Terminal access.
 
-> ⚠️ **Read Section 0 first.** The current `journalpro/settings/production.py`
-> requires **Redis**, **PostgreSQL**, and **WhiteNoise**, which are *not* in
-> `requirements.txt` and usually *not* available on shared cPanel. The app **will
-> not boot** on cPanel until the adjustments in Section 0 are made.
+> ⚠️ **Read Section 0 first.** `production.py` is now cPanel-ready for **static
+> (WhiteNoise)**, **database cache/sessions (no Redis)**, and the **PyMySQL** driver
+> — all already committed. The **one** change you must still make is the database
+> **engine** (Section 0.2): the repo defaults to PostgreSQL; switch it to MySQL for
+> a typical cPanel plan.
 
 ---
 
@@ -62,10 +63,10 @@ DATABASES = {
 }
 ```
 
-### 0.3 Remove the Redis dependency (no Redis on shared cPanel)
+### 0.3 Redis removed — cache & sessions use the database (already done)
 
-Still in `production.py`, replace the `CACHES` and session settings so nothing
-depends on Redis (otherwise **login/sessions break**):
+`production.py` **no longer references Redis.** Cache and sessions are stored in
+the database, so nothing external is required:
 
 ```python
 CACHES = {
@@ -74,16 +75,17 @@ CACHES = {
         'LOCATION': 'django_cache_table',
     }
 }
-
-# Store sessions in the database, not the cache.
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 ```
 
-You will create the cache table once with `manage.py createcachetable` (Step 7).
+You just create the cache table once with `manage.py createcachetable` (Step 7).
 
-> **WhiteNoise** (added in 0.1) is what serves your CSS/JS through Passenger, so
-> you don't have to wire up static hosting separately. It's already referenced in
-> `production.py` — it just needed to be installed.
+> If a `ModuleNotFoundError: No module named 'redis'` ever appears (e.g. during
+> **login/admin**), it means an old `production.py` with `RedisCache` /
+> `SESSION_ENGINE = ...cache` is deployed — pull the current version.
+
+> **WhiteNoise** (0.1) serves your CSS/JS through Passenger, so you don't wire up
+> static hosting separately. It's already installed and configured.
 
 ### 0.4 (Optional) relax HTTPS redirect until SSL is active
 
@@ -282,7 +284,7 @@ mkdir -p tmp && touch tmp/restart.txt      # graceful Passenger restart
 | Symptom | Likely cause / fix |
 |---|---|
 | **500 on every page, blank** | Check `logs/django_error.log` and cPanel's stderr log. Usually a missing package or a bad `.env` value. |
-| `ModuleNotFoundError: redis` / cache errors | Section 0.3 not applied — remove the Redis cache + cache sessions. |
+| `ModuleNotFoundError: redis` (often on login/admin) | An old `production.py` with `RedisCache`/cache-sessions is deployed. Pull the current version (Redis is removed), then `createcachetable`, `migrate`, restart. |
 | `No module named 'MySQLdb'` | PyMySQL not installed (`pip install -r requirements.txt`), or the shim in `journalpro/__init__.py` was removed. |
 | `Can not find valid pkg-config name` / mysqlclient build fails | You're trying to build `mysqlclient`. Don't — use **PyMySQL** (already in requirements); remove any `mysqlclient` line. |
 | `django.db.utils.OperationalError` | Wrong `DB_*` values, or user not added to the DB with privileges (Step 1). |
