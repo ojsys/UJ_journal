@@ -46,4 +46,6 @@ yake
 
 # Production / cPanel deployment
 whitenoise==6.9.0
-mysqlclient==2.2.7
+# Pure-Python MySQL driver (no C compiler / dev headers needed — works on shared cPanel).
+# Activated via the pymysql.install_as_MySQLdb() shim in journalpro/__init__.py.
+PyMySQL==1.1.1

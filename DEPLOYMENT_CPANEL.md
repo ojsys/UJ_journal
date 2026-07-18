@@ -16,18 +16,32 @@ Passenger). It assumes a typical **shared cPanel** plan with **MySQL/MariaDB**,
 Make these three changes, commit, and push (or re-upload). They are the difference
 between a working deploy and a 500 on first request.
 
-### 0.1 Add the packages cPanel actually needs to `requirements.txt`
+### 0.1 Database driver + static server (already in `requirements.txt`)
 
-Append:
+`requirements.txt` already pins:
 
 ```
-whitenoise==6.7.0
-mysqlclient==2.2.4        # only if using MySQL/MariaDB (recommended on cPanel)
-gunicorn==22.0.0          # optional; Passenger doesn't need it
+whitenoise==6.9.0
+PyMySQL==1.1.1        # pure-Python MySQL driver — no compiler/dev headers needed
 ```
 
-- Remove/skip `psycopg2` assumptions — there is **no PostgreSQL** on most cPanel plans.
-- If your host *does* offer PostgreSQL, add `psycopg2-binary==2.9.9` instead of `mysqlclient` and keep the Postgres engine.
+> ⚠️ **Do NOT use `mysqlclient` on shared cPanel.** It's a C extension that must
+> compile against MySQL dev headers, which shared hosts don't provide — it fails
+> with `Can not find valid pkg-config name`. We use **PyMySQL** instead, which is
+> pure Python and installs cleanly. The shim that makes Django use it lives in
+> `journalpro/__init__.py`:
+>
+> ```python
+> import pymysql
+> pymysql.install_as_MySQLdb()
+> ```
+>
+> (PyMySQL reports `version_info (1, 4, 6, …)`, so Django's "mysqlclient ≥ 1.4.3"
+> check passes — nothing else to do.)
+
+- There is **no PostgreSQL** on most cPanel plans. If your host *does* offer it,
+  use `psycopg2-binary==2.9.9` + the Postgres engine instead, and you can drop
+  PyMySQL and the shim.
 
 ### 0.2 Switch the database engine to MySQL
 
@@ -180,14 +194,12 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-If `mysqlclient` fails to build, ask the host to enable MySQL dev headers, or use
-the pure-Python driver instead: `pip install PyMySQL` and add this to the top of
-`journalpro/__init__.py`:
+This installs **PyMySQL** (no compilation), so the MySQL driver "just works." The
+`journalpro/__init__.py` shim wires it into Django automatically.
 
-```python
-import pymysql
-pymysql.install_as_MySQLdb()
-```
+> If you ever see `Can not find valid pkg-config name` or a build error mentioning
+> `mysqlclient`, it means `mysqlclient` crept back into `requirements.txt` — remove
+> it; the project uses **PyMySQL** on purpose.
 
 ---
 
@@ -271,7 +283,8 @@ mkdir -p tmp && touch tmp/restart.txt      # graceful Passenger restart
 |---|---|
 | **500 on every page, blank** | Check `logs/django_error.log` and cPanel's stderr log. Usually a missing package or a bad `.env` value. |
 | `ModuleNotFoundError: redis` / cache errors | Section 0.3 not applied — remove the Redis cache + cache sessions. |
-| `No module named 'MySQLdb'` | `mysqlclient` not installed, or use the PyMySQL shim (Step 5). |
+| `No module named 'MySQLdb'` | PyMySQL not installed (`pip install -r requirements.txt`), or the shim in `journalpro/__init__.py` was removed. |
+| `Can not find valid pkg-config name` / mysqlclient build fails | You're trying to build `mysqlclient`. Don't — use **PyMySQL** (already in requirements); remove any `mysqlclient` line. |
 | `django.db.utils.OperationalError` | Wrong `DB_*` values, or user not added to the DB with privileges (Step 1). |
 | CSS/JS missing (unstyled site) | Run `collectstatic`; confirm `whitenoise` installed and its middleware line is present in `production.py`. |
 | Uploaded images 404 | Media symlink missing (Step 8) or `media/` not writable. |
