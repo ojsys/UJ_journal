@@ -13,12 +13,16 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.db.models import Q
 from django.urls import reverse_lazy
 from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 from django_filters.views import FilterView
 from django import forms
 import docx
 import pdfplumber
 import io
+import logging
 import yake
+
+logger = logging.getLogger('journalapp')
 
 from .models import (
     Article, Department, Profile, ArticleCategory, Review, SiteSettings,
@@ -137,20 +141,23 @@ def send_welcome_email(request, user):
     html_content = render_to_string('journalapp/welcome_email.html', context)
     text_content = render_to_string('journalapp/welcome_email.txt', context)
     
-    # Create email
+    # Create email — the From address MUST be a verified sender in your SMTP
+    # provider (e.g. Brevo), otherwise the send is rejected. Driven by
+    # DEFAULT_FROM_EMAIL in settings/.env.
     subject = "Welcome to University Journal"
-    from_email = "University Journal <noreply@universityjournal.com>"
+    from_email = settings.DEFAULT_FROM_EMAIL
     to_email = user.email
-    
+
     # Send email
     email = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
     email.attach_alternative(html_content, "text/html")
-    
+
     try:
         email.send()
+        logger.info("Welcome email sent to %s", to_email)
     except Exception as e:
-        # Log the error but don't prevent user registration
-        print(f"Error sending welcome email: {e}")
+        # Log the error but don't prevent user registration.
+        logger.error("Error sending welcome email to %s: %s", to_email, e, exc_info=True)
 
 
 def login_view(request):
@@ -544,7 +551,7 @@ def send_revision_notification(request, article):
 
     # Create email
     subject = f"Revision Required: {article.title}"
-    from_email = "University Journal <noreply@universityjournal.com>"
+    from_email = settings.DEFAULT_FROM_EMAIL
     to_email = article.author.email
 
     # Send email
@@ -553,9 +560,9 @@ def send_revision_notification(request, article):
 
     try:
         email.send()
-        print(f"Revision notification email sent to {to_email}")
+        logger.info("Revision notification email sent to %s", to_email)
     except Exception as e:
-        print(f"Error sending revision notification email: {e}")
+        logger.error("Error sending revision notification email to %s: %s", to_email, e, exc_info=True)
 
 
 def department_journal(request, department_id):
