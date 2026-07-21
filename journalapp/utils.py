@@ -2,9 +2,39 @@
 Utility functions for the journal application.
 """
 import os
+from email.utils import formataddr, parseaddr
 from docx import Document
+from django.conf import settings
 from django.core.files.base import ContentFile
 import io
+
+
+def get_from_email():
+    """Return a friendly ``"Display Name <verified@address>"`` From header.
+
+    - The address comes from ``settings.DEFAULT_FROM_EMAIL``. If that value
+      already includes a display name, only the address part is used, so the
+      result is never double-wrapped. This address must be a sender **verified**
+      with your SMTP provider (e.g. Brevo) — only the display name is cosmetic.
+    - The display name is the configured site title (``SiteSettings.site_title``),
+      falling back to ``settings.DEFAULT_FROM_NAME`` and then ``"UniJos Journals"``.
+    """
+    _, address = parseaddr(str(settings.DEFAULT_FROM_EMAIL))
+    address = address or str(settings.DEFAULT_FROM_EMAIL)
+
+    display_name = getattr(settings, 'DEFAULT_FROM_NAME', '') or ''
+    if not display_name:
+        try:
+            from .models import SiteSettings
+            site = SiteSettings.objects.first()
+            if site and site.site_title:
+                display_name = site.site_title
+        except Exception:
+            # DB not ready / table missing — fall back to a static name.
+            display_name = ''
+    display_name = display_name or 'UniJos Journals'
+
+    return formataddr((display_name, address))
 
 
 def sanitize_document_metadata(document_path):

@@ -32,6 +32,7 @@ from .models import (
     Submission, Assignment, SubmissionMessage, DocumentVersion, SubmissionLog,
     Article, Journal, Profile, GuestReviewer, CustomUser
 )
+from .utils import get_from_email
 from .forms import (
     SubmissionForm, SubmissionAssignmentForm, AssignmentFeedbackForm,
     SubmissionMessageForm, DocumentVersionForm, FinalDocumentUploadForm,
@@ -729,7 +730,7 @@ def approve_submission(request, pk):
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=get_from_email(),
                 to=[submission.author.email]
             )
             email.attach_alternative(html_message, "text/html")
@@ -801,7 +802,7 @@ def share_with_author(request, pk):
             email = EmailMultiAlternatives(
                 subject=subject,
                 body=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
+                from_email=get_from_email(),
                 to=[submission.author.email]
             )
             email.attach_alternative(html_message, "text/html")
@@ -1087,7 +1088,7 @@ def send_guest_invitation_email(guest_reviewer, request):
     email = EmailMultiAlternatives(
         subject=f'Invitation to Review for {site_name}',
         body=text_content,
-        from_email=f'{site_name} <{settings.DEFAULT_FROM_EMAIL}>',
+        from_email=get_from_email(),
         to=[guest_reviewer.email]
     )
     email.attach_alternative(html_content, "text/html")
@@ -1121,7 +1122,7 @@ def send_guest_assignment_email(assignment, request):
     email = EmailMultiAlternatives(
         subject=f'New Review Assignment - {assignment.submission.journal.name}',
         body=text_content,
-        from_email=f'{site_name} <{settings.DEFAULT_FROM_EMAIL}>',
+        from_email=get_from_email(),
         to=[assignment.guest_reviewer.email]
     )
     email.attach_alternative(html_content, "text/html")
@@ -1149,7 +1150,7 @@ def send_guest_feedback_confirmation(assignment, request):
     email = EmailMultiAlternatives(
         subject=f'Review Submitted - {assignment.submission.anonymized_identifier}',
         body=text_content,
-        from_email=f'{site_name} <{settings.DEFAULT_FROM_EMAIL}>',
+        from_email=get_from_email(),
         to=[assignment.guest_reviewer.email]
     )
     email.attach_alternative(html_content, "text/html")
@@ -1183,7 +1184,7 @@ def send_admin_feedback_notification(assignment, request):
     email = EmailMultiAlternatives(
         subject=f'Guest Review Feedback Received - {assignment.submission.anonymized_identifier}',
         body=text_content,
-        from_email=f'{site_name} <{settings.DEFAULT_FROM_EMAIL}>',
+        from_email=get_from_email(),
         to=list(staff_emails)
     )
     email.attach_alternative(html_content, "text/html")

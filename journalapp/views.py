@@ -29,9 +29,10 @@ from .models import (
     HeroSlide, ArchivedJournal, Journal, ArticleLog, Rubric, Submission,
     Assignment, SubmissionMessage
 )
+from .utils import get_from_email
 from .forms import (
-    UserRegisterForm, ProfileUpdateForm, UserUpdateForm, ArticleForm, 
-    ReviewForm, CommentForm, DepartmentForm, SiteSettingsForm, 
+    UserRegisterForm, ProfileUpdateForm, UserUpdateForm, ArticleForm,
+    ReviewForm, CommentForm, DepartmentForm, SiteSettingsForm,
     HeroSlideForm, AssignReviewerForm, ArchivedJournalForm
 )
 from .filters import ArticleFilter
@@ -145,7 +146,7 @@ def send_welcome_email(request, user):
     # provider (e.g. Brevo), otherwise the send is rejected. Driven by
     # DEFAULT_FROM_EMAIL in settings/.env.
     subject = "Welcome to University Journal"
-    from_email = settings.DEFAULT_FROM_EMAIL
+    from_email = get_from_email()
     to_email = user.email
 
     # Send email
@@ -551,7 +552,7 @@ def send_revision_notification(request, article):
 
     # Create email
     subject = f"Revision Required: {article.title}"
-    from_email = settings.DEFAULT_FROM_EMAIL
+    from_email = get_from_email()
     to_email = article.author.email
 
     # Send email
