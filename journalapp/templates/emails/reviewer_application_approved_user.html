@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You are now a reviewer</title>
+    <style>
+        body { font-family: 'Lucida Grande', 'Lucida Sans Unicode', 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9f9f9; }
+        .email-container { max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: #fff; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+        .content { padding: 30px; }
+        .btn { display:inline-block; background:#4F46E5; color:#fff !important; text-decoration:none; padding:12px 22px; border-radius:8px; margin:12px 0; }
+        .note { background:#f8f9fa; border-left:4px solid #7C3AED; padding:12px 15px; margin:16px 0; border-radius:0 4px 4px 0; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header"><h1>Welcome to the reviewer team</h1></div>
+        <div class="content">
+            <p>Dear {{ application.first_name|default:application.email }},</p>
+            <p>Your application to review for the University of Jos Journal System has been approved. You now have a reviewer account.</p>
+
+            {% if set_password_url %}
+            <p>To get started, set your password:</p>
+            <p><a href="{{ set_password_url }}" class="btn">Set your password</a></p>
+            <p style="font-size:13px; color:#6c757d;">If the button doesn't work, copy this link into your browser:<br>{{ set_password_url }}</p>
+            {% else %}
+            <p>You can sign in with your existing account:</p>
+            <p><a href="{{ login_url }}" class="btn">Log in</a></p>
+            {% endif %}
+
+            {% if notes %}<div class="note"><strong>A note from the editors:</strong><br>{{ notes|linebreaksbr }}</div>{% endif %}
+
+            <p>Thank you for supporting scholarship at the University of Jos.</p>
+            <p>Warm regards,<br><strong>UniJos Journals Editorial Team</strong></p>
+        </div>
+        <div class="footer"><p>&copy; {% now "Y" %} University of Jos Journal System.</p></div>
+    </div>
+</body>
+</html>

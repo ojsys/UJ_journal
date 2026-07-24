@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decision on your submission</title>
+    <style>
+        body {
+            font-family: 'Lucida Grande', 'Lucida Sans Unicode', 'Segoe UI', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .content { padding: 30px; background-color: #ffffff; }
+        .submission-details {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .submission-details h3 { margin-top: 0; color: #4F46E5; font-size: 16px; }
+        .submission-details p { margin: 5px 0; }
+        .reason-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #BE123C;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .signature { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Decision on your submission</h1>
+        </div>
+
+        <div class="content">
+            <p>Dear {{ author.first_name|default:author.email }},</p>
+
+            <p>Thank you for submitting your work to {{ submission.journal.name }}.
+            After careful consideration, the editorial team has decided not to
+            proceed with your submission for publication at this time.</p>
+
+            <div class="submission-details">
+                <h3>Submission Details</h3>
+                <p><strong>Title:</strong> {{ submission.title|default:submission.anonymized_identifier }}</p>
+                <p><strong>Journal:</strong> {{ submission.journal.name }}</p>
+                <p><strong>Submitted:</strong> {{ submission.submitted_at|date:"F d, Y" }}</p>
+            </div>
+
+            {% if reason %}
+            <div class="reason-box">
+                <p style="margin:0;"><strong>Editor's note</strong></p>
+                <p style="margin:5px 0 0;">{{ reason|linebreaksbr }}</p>
+            </div>
+            {% endif %}
+
+            <p>We appreciate the effort that went into your manuscript and hope
+            you will consider submitting future work to our journals.</p>
+
+            <div class="signature">
+                <p>Best regards,<br>
+                <strong>{{ site_name }} Editorial Team</strong></p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>&copy; {% now "Y" %} {{ site_name }}. All rights reserved.</p>
+            <p>This email was sent to {{ author.email }}</p>
+        </div>
+    </div>
+</body>
+</html>

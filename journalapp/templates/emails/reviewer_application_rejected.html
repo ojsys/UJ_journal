@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update on your reviewer application</title>
+    <style>
+        body { font-family: 'Lucida Grande', 'Lucida Sans Unicode', 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9f9f9; }
+        .email-container { max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: #fff; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+        .content { padding: 30px; }
+        .note { background:#f8f9fa; border-left:4px solid #BE123C; padding:12px 15px; margin:16px 0; border-radius:0 4px 4px 0; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header"><h1>Your reviewer application</h1></div>
+        <div class="content">
+            <p>Dear {{ application.first_name|default:application.email }},</p>
+            <p>Thank you for your interest in reviewing for the University of Jos Journal System. After careful consideration, we are unable to add you to our reviewer panel at this time.</p>
+            {% if notes %}<div class="note">{{ notes|linebreaksbr }}</div>{% endif %}
+            <p>We're grateful for your willingness to contribute and encourage you to apply again in the future.</p>
+            <p>Warm regards,<br><strong>UniJos Journals Editorial Team</strong></p>
+        </div>
+        <div class="footer"><p>&copy; {% now "Y" %} University of Jos Journal System.</p></div>
+    </div>
+</body>
+</html>

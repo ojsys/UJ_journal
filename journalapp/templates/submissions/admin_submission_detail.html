@@ -54,7 +54,7 @@
                             <tbody>
                                 {% for version in versions %}
                                 <tr>
-                                    <td class="ps-4"><span class="fw-semibold">V{{ version.version_number }}</span> {% if version.is_final %}<span class="uj-pill uj-pill--success ms-1">Final</span>{% endif %}</td>
+                                    <td class="ps-4"><span class="fw-semibold">V{{ version.version_number }}</span> {% if version.is_final %}<span class="uj-pill uj-pill--success ms-1">Final</span>{% endif %}{% if version.is_review_copy %}<span class="uj-pill uj-pill--brand ms-1">Review copy</span>{% endif %}</td>
                                     <td style="font-size:13px;">{{ version.uploaded_by.get_full_name|default:version.uploaded_by.email }}</td>
                                     <td style="font-size:13px;">{{ version.uploaded_at|date:"M d, Y" }}</td>
                                     <td style="font-size:13px;" class="text-muted">{{ version.notes|truncatewords:10 }}</td>
@@ -136,14 +136,47 @@
         <!-- Sidebar -->
         <div class="col-lg-4">
             <div class="card mb-4">
-                <div class="card-header">Actions</div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Actions</span>
+                    {% if current_round %}<span class="uj-pill">Round {{ current_round.number }}</span>{% endif %}
+                </div>
                 <div class="card-body d-grid gap-2">
-                    {% if submission.status in 'pending,in_review,with_editor,revised' %}
-                    <button class="btn btn-primary justify-content-start" data-bs-toggle="modal" data-bs-target="#assignModal"><i class="material-icons" style="font-size:17px;">person_add</i> Assign reviewer/editor</button>
+                    {% if submission.status in 'pending,preparing,revised' %}
+                    <a href="{% url 'prepare_for_review' submission.pk %}" class="btn btn-primary justify-content-start"><i class="material-icons" style="font-size:17px;">visibility_off</i> {% if has_review_copy %}Prepare another review copy{% else %}Prepare review copy{% endif %}</a>
                     {% endif %}
+
+                    {% if submission.status in 'pending,preparing,in_review,with_editor,revised' %}
+                        {% if has_review_copy %}
+                        <button class="btn btn-outline-primary justify-content-start" data-bs-toggle="modal" data-bs-target="#assignModal"><i class="material-icons" style="font-size:17px;">person_add</i> Assign reviewer/editor</button>
+                        {% else %}
+                        <button class="btn btn-outline-primary justify-content-start" disabled title="Prepare a review copy first"><i class="material-icons" style="font-size:17px;">person_add</i> Assign reviewer/editor</button>
+                        <small class="text-muted" style="font-size:12px;">Prepare a review copy before assigning reviewers.</small>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if submission.status == 'revised' %}
+                    <form method="post" action="{% url 'reopen_review' submission.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-primary justify-content-start w-100"><i class="material-icons" style="font-size:17px;">replay</i> Send back to reviewers</button>
+                    </form>
+                    {% endif %}
+
                     {% if submission.status != 'rejected' and submission.status != 'published' %}
                     <button class="btn btn-outline-primary justify-content-start" data-bs-toggle="modal" data-bs-target="#revisionModal"><i class="material-icons" style="font-size:17px;">edit</i> Request revision</button>
                     {% endif %}
+                    {% if submission.active_fee and not submission.is_paid %}
+                    <div class="uj-panel p-2" style="box-shadow:none; font-size:13px;">
+                        <div class="d-flex align-items-center gap-1 mb-2"><i class="material-icons" style="font-size:16px; color:var(--uj-warn-fg);">payments</i> Fee: {{ submission.active_fee.currency }} {{ submission.active_fee.amount }} — unpaid</div>
+                        <form method="post" action="{% url 'request_payment' submission.pk %}" class="mb-1">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-primary btn-sm w-100"><i class="material-icons" style="font-size:15px;">mail</i> {% if submission.status == 'awaiting_payment' %}Resend payment request{% else %}Request payment from author{% endif %}</button>
+                        </form>
+                        <button class="btn btn-light btn-sm w-100" data-bs-toggle="modal" data-bs-target="#waiveModal"><i class="material-icons" style="font-size:15px;">money_off</i> Waive fee</button>
+                    </div>
+                    {% elif submission.is_paid and submission.status != 'published' %}
+                    <div class="uj-pill uj-pill--success"><i class="material-icons" style="font-size:14px;">check_circle</i> Fee settled</div>
+                    {% endif %}
+
                     {% if submission.status == 'approved' or submission.status == 'revised' or submission.status == 'with_editor' %}
                     <a href="{% url 'upload_final_document' submission.pk %}" class="btn btn-success justify-content-start"><i class="material-icons" style="font-size:17px;">publish</i> Upload final &amp; publish</a>
                     {% endif %}
@@ -240,6 +273,23 @@
                     </div>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Send revision request</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Waive Fee Modal -->
+<div class="modal fade" id="waiveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'waive_payment' submission.pk %}">
+                {% csrf_token %}
+                <div class="modal-header"><h5 class="modal-title">Waive publication fee</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p style="font-size:14px;">Waiving the fee lets this article be published without payment.</p>
+                    <div class="mb-3"><label class="form-label">Reason <span class="text-muted fw-normal">(optional)</span></label><textarea name="reason" class="form-control" rows="3" placeholder="e.g. Student submission; invited article…"></textarea></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Waive fee</button></div>
             </form>
         </div>
     </div>

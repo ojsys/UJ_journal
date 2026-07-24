@@ -12,7 +12,7 @@
     <div class="row g-4">
         {% for journal in journals %}
         <div class="col-md-6 col-lg-4">
-            <a href="{% url 'department_journal' journal.id %}" class="card card-hover h-100 text-decoration-none">
+            <a href="{% url 'journal_detail' journal.id %}" class="card card-hover h-100 text-decoration-none">
                 <div class="uj-jcard__media">
                     {% if journal.cover_image %}
                     <img src="{{ journal.cover_image.url }}" alt="{{ journal.name }}">

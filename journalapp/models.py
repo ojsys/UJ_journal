@@ -82,6 +82,62 @@ class Journal(models.Model):
         return f"{self.name} ({self.department.name})"
 
 
+class JournalRole(models.Model):
+    """
+    Grants a user a staff role scoped to a single journal.
+
+    Before this model, every editorial view was gated on the site-wide
+    ``is_staff`` flag, so any staff member could act on any journal. A role here
+    is additive: site superusers and ``is_staff`` users keep full access (see
+    ``journalapp.permissions``), while a journal role gives a non-staff user
+    authority over exactly one journal.
+
+    Two roles, because the client runs one lead person per journal:
+
+    * ``chief_editor`` — full authority over the journal: content (rubrics,
+      checklist, team) *and* the review workflow *and* final decisions
+      (approve, reject, publish). This is the per-journal "admin".
+    * ``editor`` — assists with the review workflow (assign reviewers, request
+      revisions) but cannot take final decisions or manage journal content.
+    """
+    ROLE_CHIEF_EDITOR = 'chief_editor'
+    ROLE_EDITOR = 'editor'
+
+    ROLE_CHOICES = (
+        (ROLE_CHIEF_EDITOR, 'Chief Editor'),    # full authority: content, workflow, publish
+        (ROLE_EDITOR, 'Editor'),                # assists with review; no decisions, no content
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='journal_roles'
+    )
+    journal = models.ForeignKey(
+        Journal,
+        on_delete=models.CASCADE,
+        related_name='roles'
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='journal_roles_granted'
+    )
+    granted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'journal', 'role')
+        ordering = ['journal__name', 'role', 'user__email']
+        verbose_name = 'Journal Role'
+        verbose_name_plural = 'Journal Roles'
+
+    def __str__(self):
+        return f"{self.user.email} — {self.get_role_display()} of {self.journal.name}"
+
+
 class SiteSettings(models.Model):
     site_title = models.CharField(max_length=100, default="University of Jos Journal System")
     site_description = models.TextField(blank=True)
@@ -175,6 +231,63 @@ class Rubric(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ChecklistItem(models.Model):
+    """
+    One thing an author must confirm before submitting to a journal.
+
+    Each journal defines its own checklist (managed by its Chief Editor). At
+    submission time the active items are rendered as checkboxes and the required
+    ones must be ticked. What the author actually confirmed is frozen onto the
+    :class:`ChecklistResponse` so later edits to the wording don't rewrite history.
+    """
+    journal = models.ForeignKey(
+        Journal, on_delete=models.CASCADE, related_name='checklist_items'
+    )
+    text = models.CharField(max_length=500, help_text="The statement the author confirms.")
+    help_text = models.CharField(
+        max_length=500, blank=True,
+        help_text="Optional clarifying note shown under the item."
+    )
+    order = models.PositiveIntegerField(default=0)
+    required = models.BooleanField(
+        default=True,
+        help_text="If ticked, the author cannot submit without confirming this item."
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Inactive items are hidden from new submissions but kept for history."
+    )
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.text[:80]
+
+
+class ChecklistResponse(models.Model):
+    """An author's answer to one checklist item, captured at submission time."""
+    submission = models.ForeignKey(
+        'Submission', on_delete=models.CASCADE, related_name='checklist_responses'
+    )
+    item = models.ForeignKey(
+        ChecklistItem, on_delete=models.PROTECT, related_name='responses'
+    )
+    # Frozen copy: the item may be reworded or deactivated later, but this
+    # records exactly what the author agreed to at the time.
+    item_text = models.CharField(max_length=500)
+    checked = models.BooleanField(default=False)
+    responded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['item__order', 'item_id']
+        unique_together = ('submission', 'item')
+
+    def __str__(self):
+        state = '✓' if self.checked else '✗'
+        return f"{state} {self.item_text[:60]}"
 
 
 class Article(models.Model):
@@ -324,13 +437,22 @@ class Submission(models.Model):
     """
     STATUS_CHOICES = (
         ('pending', 'Pending Review'),
+        ('preparing', 'Preparing for Review'),
         ('in_review', 'In Review'),
         ('with_editor', 'With Editor'),
         ('revision_requested', 'Revision Requested'),
         ('revised', 'Revised'),
         ('approved', 'Approved'),
+        ('awaiting_payment', 'Awaiting Payment'),
         ('published', 'Published'),
         ('rejected', 'Rejected'),
+    )
+
+    # An author may correct/replace their own submission until an editor takes a
+    # final decision — "so long as the admin has not accepted the submission"
+    # (client). approved / published / rejected are final and lock it.
+    AUTHOR_EDITABLE_STATES = (
+        'pending', 'in_review', 'with_editor', 'revision_requested', 'revised',
     )
 
     author = models.ForeignKey(
@@ -392,6 +514,79 @@ class Submission(models.Model):
             ).count() + 1
             self.anonymized_identifier = f"MS-{year}-{count:04d}"
         super().save(*args, **kwargs)
+
+    @property
+    def is_editable_by_author(self):
+        """Whether the author may still edit/replace this submission."""
+        return self.status in self.AUTHOR_EDITABLE_STATES
+
+    # -- Blind review: hide the author from reviewers -----------------------
+
+    def is_author_hidden_from(self, user):
+        """Whether the author's identity must be hidden from ``user``.
+
+        The author, site staff, and this journal's editorial team always see the
+        real identity. A reviewer sees it only if their assignment is *not*
+        blinded. Anyone else (including anonymous) is hidden by default, so a
+        template that forgets to guard a name can't leak it.
+        """
+        if not (user and getattr(user, 'is_authenticated', False)):
+            return True
+        if user == self.author or user.is_staff or user.is_superuser:
+            return False
+        if self.journal.roles.filter(user=user).exists():
+            return False
+        assignment = self.assignments.filter(assigned_to=user).first()
+        if assignment:
+            return bool(assignment.blinded)
+        return True
+
+    def author_label_for(self, user):
+        """The author's name for ``user``, or the manuscript code if hidden."""
+        if self.is_author_hidden_from(user):
+            return self.anonymized_identifier
+        return self.author.get_full_name() or self.author.email
+
+    # -- Review rounds ------------------------------------------------------
+
+    @property
+    def current_round(self):
+        """The latest review round, if any."""
+        return self.review_rounds.order_by('-number').first()
+
+    def open_new_round(self, opened_by=None):
+        """Open the next review round (closing any still-open one)."""
+        last = self.current_round
+        if last and last.closed_at is None:
+            last.closed_at = timezone.now()
+            last.save(update_fields=['closed_at'])
+        number = (last.number + 1) if last else 1
+        return self.review_rounds.create(number=number, opened_by=opened_by)
+
+    @property
+    def has_review_copy(self):
+        """Whether a reviewer-ready (de-identified) copy exists."""
+        return self.document_versions.filter(is_review_copy=True).exists()
+
+    # -- Publication fee ----------------------------------------------------
+
+    @property
+    def active_fee(self):
+        """The journal's active publication fee, or None if there's no charge."""
+        fee = getattr(self.journal, 'fee', None)
+        if fee and fee.is_active and fee.amount and fee.amount > 0:
+            return fee
+        return None
+
+    @property
+    def is_paid(self):
+        """Whether the publication fee is settled (paid or waived)."""
+        return self.payments.filter(status__in=('success', 'waived')).exists()
+
+    @property
+    def requires_payment(self):
+        """Whether publication is currently blocked pending a fee."""
+        return self.active_fee is not None and not self.is_paid
 
     @property
     def current_assignments(self):
@@ -482,6 +677,33 @@ class GuestReviewer(models.Model):
         return True
 
 
+class ReviewRound(models.Model):
+    """
+    One round of peer review on a submission.
+
+    A submission may go through several rounds: reviewers report, the author
+    revises, the editor sends it back out. Grouping assignments under a round
+    makes the second round distinguishable from the first in the history.
+    """
+    submission = models.ForeignKey(
+        Submission, on_delete=models.CASCADE, related_name='review_rounds'
+    )
+    number = models.PositiveIntegerField()
+    opened_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    opened_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='review_rounds_opened'
+    )
+
+    class Meta:
+        ordering = ['submission', 'number']
+        unique_together = ('submission', 'number')
+
+    def __str__(self):
+        return f"{self.submission.anonymized_identifier} — round {self.number}"
+
+
 class Assignment(models.Model):
     """
     Tracks reviewer and editor assignments to submissions.
@@ -524,6 +746,14 @@ class Assignment(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='assignments_made'
+    )
+    review_round = models.ForeignKey(
+        ReviewRound,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assignments',
+        help_text="Which review round this assignment belongs to"
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
@@ -684,6 +914,12 @@ class DocumentVersion(models.Model):
         default=False,
         help_text="Mark as the final approved version"
     )
+    is_review_copy = models.BooleanField(
+        default=False,
+        help_text="A Chief-Editor-prepared, de-identified copy that reviewers "
+                  "download. Reviewers only ever see review copies, never the "
+                  "author's original upload."
+    )
 
     class Meta:
         ordering = ['-version_number']
@@ -733,3 +969,157 @@ class SubmissionLog(models.Model):
 
 
 ################### End Submission Workflow Models #########################
+
+
+################### Volunteer Reviewer Applications #########################
+
+class ReviewerApplication(models.Model):
+    """
+    A public application to become a volunteer peer reviewer.
+
+    Anyone may apply without an account. An editor reviews the application and,
+    on approval, turns the applicant into either a full login account (a
+    ``CustomUser`` with ``Profile.is_reviewer``) or a token-based
+    :class:`GuestReviewer` — reusing the existing guest-invite machinery.
+    """
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    email = models.EmailField()
+    affiliation = models.CharField(
+        max_length=300, blank=True,
+        help_text="Institution or organization"
+    )
+    position = models.CharField(
+        max_length=200, blank=True,
+        help_text="Role or title, e.g. Senior Lecturer"
+    )
+    qualifications = models.TextField(
+        blank=True,
+        help_text="Degrees, publications, relevant experience"
+    )
+    expertise_areas = models.TextField(
+        blank=True,
+        help_text="Areas of expertise (comma-separated)"
+    )
+    journals_of_interest = models.ManyToManyField(
+        Journal, blank=True, related_name='reviewer_applications'
+    )
+    cv = models.FileField(upload_to='reviewer_cvs/', blank=True, null=True)
+    statement = models.TextField(
+        blank=True,
+        help_text="A short statement of interest"
+    )
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewer_applications_reviewed'
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True)
+
+    # Set when an approved applicant is turned into an account or guest reviewer.
+    created_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewer_application'
+    )
+    guest_reviewer = models.OneToOneField(
+        GuestReviewer, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewer_application'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_full_name()} ({self.email}) — {self.get_status_display()}"
+
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
+    @property
+    def expertise_list(self):
+        return [a.strip() for a in self.expertise_areas.split(',') if a.strip()]
+
+
+################### End Volunteer Reviewer Applications #########################
+
+
+################### Publication Fees & Payments #########################
+
+class JournalFee(models.Model):
+    """The publication fee charged for a journal, payable before an accepted
+    article is published. A journal without an active fee publishes for free."""
+    journal = models.OneToOneField(Journal, on_delete=models.CASCADE, related_name='fee')
+    amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Amount charged on acceptance, before publication."
+    )
+    currency = models.CharField(max_length=3, default='NGN')
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Uncheck to publish this journal free of charge."
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.journal.name}: {self.currency} {self.amount}"
+
+
+class Payment(models.Model):
+    """A publication-fee payment attempt for a submission (via Paystack)."""
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('waived', 'Waived'),
+    )
+
+    submission = models.ForeignKey(
+        Submission, on_delete=models.CASCADE, related_name='payments'
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payments'
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='NGN')
+
+    # Our own reference, sent to Paystack; unique so webhooks are idempotent.
+    reference = models.CharField(max_length=100, unique=True)
+    paystack_reference = models.CharField(max_length=100, blank=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    paid_at = models.DateTimeField(null=True, blank=True)
+    raw_response = models.JSONField(default=dict, blank=True)
+
+    waived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='payments_waived'
+    )
+    waiver_reason = models.CharField(max_length=300, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.reference} — {self.get_status_display()} ({self.currency} {self.amount})"
+
+    @property
+    def amount_kobo(self):
+        """Paystack works in the currency's minor unit (kobo for NGN)."""
+        return int(self.amount * 100)
+
+
+################### End Publication Fees & Payments #########################

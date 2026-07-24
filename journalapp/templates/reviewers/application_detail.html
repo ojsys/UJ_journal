@@ -1,0 +1,92 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}Application — {{ application.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{% url 'reviewer_applications_list' %}" class="text-muted d-inline-flex align-items-center gap-1 mb-3" style="font-size:13px;">
+        <i class="material-icons" style="font-size:15px;">arrow_back</i> All applications
+    </a>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+                        <div>
+                            <h4 class="mb-1">{{ application.get_full_name }}</h4>
+                            <div class="text-muted" style="font-size:14px;">
+                                <a href="mailto:{{ application.email }}">{{ application.email }}</a>
+                                {% if application.position %} · {{ application.position }}{% endif %}
+                            </div>
+                        </div>
+                        {% if application.status == 'pending' %}<span class="uj-pill uj-pill--warn">Pending</span>
+                        {% elif application.status == 'approved' %}<span class="uj-pill uj-pill--success">Approved</span>
+                        {% else %}<span class="uj-pill uj-pill--danger">Declined</span>{% endif %}
+                    </div>
+
+                    {% if application.affiliation %}<p class="mb-3"><span class="text-muted" style="font-size:13px;">Affiliation</span><br>{{ application.affiliation }}</p>{% endif %}
+
+                    {% if application.expertise_list %}
+                    <div class="mb-3">
+                        <span class="text-muted" style="font-size:13px;">Expertise</span><br>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                            {% for area in application.expertise_list %}<span class="uj-pill">{{ area }}</span>{% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if application.journals_of_interest.all %}
+                    <div class="mb-3">
+                        <span class="text-muted" style="font-size:13px;">Journals of interest</span><br>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                            {% for j in application.journals_of_interest.all %}<span class="uj-pill uj-pill--brand">{{ j.name }}</span>{% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if application.qualifications %}<div class="mb-3"><span class="text-muted" style="font-size:13px;">Qualifications</span><p class="mb-0" style="font-size:14px;">{{ application.qualifications|linebreaksbr }}</p></div>{% endif %}
+                    {% if application.statement %}<div class="mb-3"><span class="text-muted" style="font-size:13px;">Statement</span><p class="mb-0" style="font-size:14px;">{{ application.statement|linebreaksbr }}</p></div>{% endif %}
+                    {% if application.cv %}<a href="{{ application.cv.url }}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:15px;">download</i> Download CV</a>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            {% if application.status == 'pending' %}
+            <div class="card">
+                <div class="card-header">Decision</div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'reviewer_application_decide' application.pk %}">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 mb-3">
+                            {% for radio in form.decision %}
+                            <label class="uj-panel p-3 d-flex gap-2 align-items-start" style="box-shadow:none; cursor:pointer; font-size:14px;">
+                                {{ radio.tag }} <span>{{ radio.choice_label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">Note to applicant <span class="text-muted fw-normal">(optional)</span></label>
+                            {{ form.notes }}
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 justify-content-center"><i class="material-icons" style="font-size:17px;">check</i> Submit decision</button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-header">Decision</div>
+                <div class="card-body" style="font-size:14px;">
+                    <p class="mb-2"><strong>{{ application.get_status_display }}</strong>
+                    {% if application.reviewed_by %} by {{ application.reviewed_by.get_full_name|default:application.reviewed_by.email }}{% endif %}
+                    {% if application.reviewed_at %} on {{ application.reviewed_at|date:"M d, Y" }}{% endif %}.</p>
+                    {% if application.review_notes %}<p class="text-muted mb-2">"{{ application.review_notes }}"</p>{% endif %}
+                    {% if application.created_user %}<div class="uj-pill uj-pill--success">Login account created</div>{% endif %}
+                    {% if application.guest_reviewer %}<div class="uj-pill uj-pill--brand">Guest reviewer added</div>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

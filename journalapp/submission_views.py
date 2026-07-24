@@ -9,9 +9,9 @@ This module contains all views related to:
 - Document extraction and publishing
 """
 
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST, require_GET
@@ -27,17 +27,26 @@ from django.conf import settings
 import docx
 import io
 import re
+import logging
+
+logger = logging.getLogger('journalapp')
 
 from .models import (
     Submission, Assignment, SubmissionMessage, DocumentVersion, SubmissionLog,
-    Article, Journal, Profile, GuestReviewer, CustomUser
+    Article, Journal, Profile, GuestReviewer, CustomUser, JournalRole,
+    ChecklistItem, ChecklistResponse, ReviewRound
+)
+from .permissions import (
+    journal_staff_required, journals_for, has_journal_role,
+    CONTENT_ROLES, WORKFLOW_ROLES, DECISION_ROLES,
 )
 from .utils import get_from_email
 from .forms import (
-    SubmissionForm, SubmissionAssignmentForm, AssignmentFeedbackForm,
-    SubmissionMessageForm, DocumentVersionForm, FinalDocumentUploadForm,
-    PublishArticleForm, RevisionRequestForm, GuestReviewerForm,
-    BulkGuestReviewerForm, AssignGuestReviewerForm
+    SubmissionForm, SubmissionEditForm, SubmissionAssignmentForm,
+    AssignmentFeedbackForm, SubmissionMessageForm, DocumentVersionForm,
+    FinalDocumentUploadForm, ReviewCopyUploadForm, PublishArticleForm,
+    RevisionRequestForm, GuestReviewerForm, BulkGuestReviewerForm,
+    AssignGuestReviewerForm, JournalRoleForm
 )
 
 
@@ -140,9 +149,27 @@ def extract_document_content(file):
 @login_required
 def submission_create(request):
     """Allow authors to submit a new article"""
+    checklist_error = None
+    checked_ids = set()
     if request.method == 'POST':
         form = SubmissionForm(request.POST, request.FILES)
-        if form.is_valid():
+        # Remember which boxes were ticked so a validation error doesn't wipe them.
+        checked_ids = {
+            int(key.split('checklist_', 1)[1])
+            for key in request.POST
+            if key.startswith('checklist_') and key.split('checklist_', 1)[1].isdigit()
+        }
+        # Validate the selected journal's required checklist items before saving.
+        # This runs alongside the form so both sets of errors show at once.
+        selected_journal = form.data.get('journal')
+        required_items = ChecklistItem.objects.filter(
+            journal_id=selected_journal, is_active=True, required=True
+        ) if selected_journal else ChecklistItem.objects.none()
+        unticked = [item for item in required_items if item.pk not in checked_ids]
+        if unticked:
+            checklist_error = 'Please confirm every required checklist item before submitting.'
+
+        if form.is_valid() and not checklist_error:
             submission = form.save(commit=False)
             submission.author = request.user
             # Auto-generate title from filename (without extension)
@@ -153,6 +180,19 @@ def submission_create(request):
                 title = title.replace('_', ' ').replace('-', ' ')
                 submission.title = title[:300]  # Truncate to max length
             submission.save()
+
+            # Record the author's checklist responses (active items for this
+            # journal), freezing the wording onto each response.
+            active_items = submission.journal.checklist_items.filter(is_active=True)
+            ChecklistResponse.objects.bulk_create([
+                ChecklistResponse(
+                    submission=submission,
+                    item=item,
+                    item_text=item.text,
+                    checked=bool(request.POST.get(f'checklist_{item.pk}')),
+                )
+                for item in active_items
+            ])
 
             # Create initial document version
             DocumentVersion.objects.create(
@@ -174,25 +214,30 @@ def submission_create(request):
     else:
         form = SubmissionForm()
 
-    # Get all journals for card display
-    journals = Journal.objects.all().order_by('name')
+    # Get all journals for card display, each with its active checklist items so
+    # the form can reveal the right checklist for the chosen journal.
+    journals = Journal.objects.all().order_by('name').prefetch_related('checklist_items')
 
     return render(request, 'submissions/submission_form.html', {
         'form': form,
         'title': 'Submit New Article',
-        'journals': journals
+        'journals': journals,
+        'checklist_error': checklist_error,
+        'checked_ids': checked_ids,
     })
 
 
 @login_required
 def submission_list(request):
-    """List all submissions for the current author"""
-    submissions = Submission.objects.filter(author=request.user).order_by('-submitted_at')
+    """List all submissions for the current author.
 
-    # Filter by status if provided
-    status_filter = request.GET.get('status')
-    if status_filter:
-        submissions = submissions.filter(status=status_filter)
+    No status filter here by design — authors track a submission from its detail
+    page (the activity timeline), so the list is just the full record with a
+    passive status pill per row.
+    """
+    submissions = Submission.objects.filter(
+        author=request.user
+    ).select_related('journal').order_by('-submitted_at')
 
     paginator = Paginator(submissions, 10)
     page = request.GET.get('page')
@@ -200,8 +245,6 @@ def submission_list(request):
 
     return render(request, 'submissions/submission_list.html', {
         'submissions': submissions,
-        'status_filter': status_filter,
-        'status_choices': Submission.STATUS_CHOICES
     })
 
 
@@ -210,8 +253,10 @@ def submission_detail(request, pk):
     """View submission details (for author)"""
     submission = get_object_or_404(Submission, pk=pk)
 
-    # Check permission - author can view their own, staff can view all
-    if submission.author != request.user and not request.user.is_staff:
+    # Check permission - author can view their own; site staff and this
+    # journal's editorial team can view all; assignees are checked below.
+    if (submission.author != request.user
+            and not has_journal_role(request.user, submission.journal, roles=WORKFLOW_ROLES)):
         # Check if user is assigned to this submission
         if not submission.assignments.filter(assigned_to=request.user).exists():
             messages.error(request, 'You do not have permission to view this submission.')
@@ -233,6 +278,60 @@ def submission_detail(request, pk):
         'logs': logs,
         'versions': versions,
         'completed_assignments': completed_assignments,
+    })
+
+
+@login_required
+def submission_edit(request, pk):
+    """Let an author correct their submission until an editor decides on it.
+
+    Distinct from ``submission_revise``: this is for fixing a mistake (wrong
+    file, typo in the cover letter) without signalling a formal revision, so it
+    does not change the status. Replacing the file adds a new DocumentVersion so
+    the author never has to juggle multiple uploads, while history is preserved.
+    """
+    submission = get_object_or_404(Submission, pk=pk, author=request.user)
+
+    if not submission.is_editable_by_author:
+        messages.error(
+            request,
+            'This submission can no longer be edited — an editor has already '
+            'taken a decision on it.'
+        )
+        return redirect('submission_detail', pk=pk)
+
+    if request.method == 'POST':
+        form = SubmissionEditForm(request.POST, request.FILES, instance=submission)
+        if form.is_valid():
+            submission = form.save()
+
+            new_document = form.cleaned_data.get('new_document')
+            if new_document:
+                version = DocumentVersion.objects.create(
+                    submission=submission,
+                    uploaded_by=request.user,
+                    document=new_document,
+                    notes='Author replaced the manuscript',
+                )
+                submission.document = new_document
+                submission.save(update_fields=['document'])
+                log_submission_action(
+                    submission, request.user, 'Author replaced the manuscript',
+                    {'version': version.version_number}
+                )
+            else:
+                log_submission_action(
+                    submission, request.user, 'Author edited submission details'
+                )
+
+            messages.success(request, 'Your submission has been updated.')
+            return redirect('submission_detail', pk=pk)
+    else:
+        form = SubmissionEditForm(instance=submission)
+
+    return render(request, 'submissions/submission_edit.html', {
+        'form': form,
+        'submission': submission,
     })
 
 
@@ -279,17 +378,22 @@ def submission_revise(request, pk):
 # Admin Views
 # ============================================================================
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES, lookup='none')
 def admin_submission_list(request):
     """Admin view to see all submissions"""
-    submissions = Submission.objects.all().select_related('author', 'journal')
+    # Scope to journals this user has an editorial role on. Site staff get every
+    # journal back from journals_for(), so this is a no-op for them.
+    permitted_journals = journals_for(request.user, roles=WORKFLOW_ROLES)
+    scoped = Submission.objects.filter(journal__in=permitted_journals)
+    submissions = scoped.select_related('author', 'journal')
 
     # Filter by status
     status_filter = request.GET.get('status')
     if status_filter:
         submissions = submissions.filter(status=status_filter)
 
-    # Filter by journal
+    # Filter by journal — bounded by the permitted set above, so a hand-typed
+    # ?journal= for someone else's journal returns nothing rather than leaking.
     journal_filter = request.GET.get('journal')
     if journal_filter:
         submissions = submissions.filter(journal_id=journal_filter)
@@ -311,13 +415,13 @@ def admin_submission_list(request):
     submissions = paginator.get_page(page)
 
     # Get counts by status
-    status_counts = Submission.objects.values('status').annotate(count=Count('id'))
+    status_counts = scoped.values('status').annotate(count=Count('id'))
 
     # Get detailed status breakdowns
     status_details = {}
 
     # Pending - need assignment
-    pending_subs = Submission.objects.filter(status='pending').select_related('author', 'journal').order_by('-submitted_at')[:5]
+    pending_subs = scoped.filter(status='pending').select_related('author', 'journal').order_by('-submitted_at')[:5]
     status_details['pending'] = {
         'count': pending_subs.count(),
         'submissions': pending_subs,
@@ -327,7 +431,7 @@ def admin_submission_list(request):
     }
 
     # In Review - awaiting reviewer feedback
-    in_review_subs = Submission.objects.filter(status='in_review').select_related('author', 'journal').prefetch_related('assignments').order_by('-submitted_at')[:5]
+    in_review_subs = scoped.filter(status='in_review').select_related('author', 'journal').prefetch_related('assignments').order_by('-submitted_at')[:5]
     status_details['in_review'] = {
         'count': in_review_subs.count(),
         'submissions': in_review_subs,
@@ -337,7 +441,7 @@ def admin_submission_list(request):
     }
 
     # With Editor - awaiting editorial decision
-    with_editor_subs = Submission.objects.filter(status='with_editor').select_related('author', 'journal').order_by('-submitted_at')[:5]
+    with_editor_subs = scoped.filter(status='with_editor').select_related('author', 'journal').order_by('-submitted_at')[:5]
     status_details['with_editor'] = {
         'count': with_editor_subs.count(),
         'submissions': with_editor_subs,
@@ -347,7 +451,7 @@ def admin_submission_list(request):
     }
 
     # Revision Requested
-    revision_subs = Submission.objects.filter(status='revision_requested').select_related('author', 'journal').order_by('-updated_at')[:5]
+    revision_subs = scoped.filter(status='revision_requested').select_related('author', 'journal').order_by('-updated_at')[:5]
     status_details['revision_requested'] = {
         'count': revision_subs.count(),
         'submissions': revision_subs,
@@ -357,7 +461,7 @@ def admin_submission_list(request):
     }
 
     # Revised - awaiting review
-    revised_subs = Submission.objects.filter(status='revised').select_related('author', 'journal').order_by('-updated_at')[:5]
+    revised_subs = scoped.filter(status='revised').select_related('author', 'journal').order_by('-updated_at')[:5]
     status_details['revised'] = {
         'count': revised_subs.count(),
         'submissions': revised_subs,
@@ -367,7 +471,7 @@ def admin_submission_list(request):
     }
 
     # Approved - ready to publish
-    approved_subs = Submission.objects.filter(status='approved').select_related('author', 'journal').order_by('-updated_at')[:5]
+    approved_subs = scoped.filter(status='approved').select_related('author', 'journal').order_by('-updated_at')[:5]
     status_details['approved'] = {
         'count': approved_subs.count(),
         'submissions': approved_subs,
@@ -377,7 +481,7 @@ def admin_submission_list(request):
     }
 
     # Published
-    published_subs = Submission.objects.filter(status='published').select_related('author', 'journal').order_by('-updated_at')[:5]
+    published_subs = scoped.filter(status='published').select_related('author', 'journal').order_by('-updated_at')[:5]
     status_details['published'] = {
         'count': published_subs.count(),
         'submissions': published_subs,
@@ -387,7 +491,7 @@ def admin_submission_list(request):
     }
 
     # Rejected
-    rejected_subs = Submission.objects.filter(status='rejected').select_related('author', 'journal').order_by('-updated_at')[:5]
+    rejected_subs = scoped.filter(status='rejected').select_related('author', 'journal').order_by('-updated_at')[:5]
     status_details['rejected'] = {
         'count': rejected_subs.count(),
         'submissions': rejected_subs,
@@ -402,13 +506,13 @@ def admin_submission_list(request):
         'journal_filter': journal_filter,
         'search_query': search_query,
         'status_choices': Submission.STATUS_CHOICES,
-        'journals': Journal.objects.all(),
+        'journals': permitted_journals,
         'status_counts': {s['status']: s['count'] for s in status_counts},
         'status_details': status_details,
     })
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES)
 def admin_submission_detail(request, pk):
     """Admin view for submission details with actions"""
     submission = get_object_or_404(Submission, pk=pk)
@@ -441,10 +545,95 @@ def admin_submission_detail(request, pk):
         'assign_form': assign_form,
         'message_form': message_form,
         'eligible_users': eligible_users,
+        'has_review_copy': submission.has_review_copy,
+        'current_round': submission.current_round,
+        'review_rounds': submission.review_rounds.all(),
     })
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES)
+def prepare_for_review(request, pk):
+    """Chief editor prepares a de-identified review copy before assigning reviewers.
+
+    This is the "downloads and prepares it for Reviewing" step: the editor
+    downloads the author's original, strips identifying content, and uploads a
+    review-ready copy. Only review copies are ever shown to reviewers, so this
+    step is what actually makes the manuscript blind (metadata stripping alone
+    can't remove a name typed on the title page). Opens review round 1 if none
+    is open yet.
+    """
+    submission = get_object_or_404(Submission, pk=pk)
+
+    if request.method == 'POST':
+        form = ReviewCopyUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            version = DocumentVersion.objects.create(
+                submission=submission,
+                uploaded_by=request.user,
+                document=form.cleaned_data['document'],
+                notes=form.cleaned_data.get('notes', '') or 'Review-ready copy prepared by editor',
+                is_review_copy=True,
+            )
+
+            # Open the first round if the review hasn't started yet.
+            if submission.current_round is None:
+                submission.open_new_round(opened_by=request.user)
+
+            if submission.status == 'pending':
+                submission.status = 'preparing'
+                submission.save(update_fields=['status'])
+
+            log_submission_action(
+                submission, request.user, 'Review copy prepared',
+                {'version': version.version_number}
+            )
+            messages.success(
+                request,
+                'Review copy uploaded. You can now assign reviewers — they will '
+                'download this copy, not the author\'s original.'
+            )
+            return redirect('admin_submission_detail', pk=pk)
+    else:
+        form = ReviewCopyUploadForm()
+
+    return render(request, 'submissions/prepare_for_review.html', {
+        'form': form,
+        'submission': submission,
+    })
+
+
+@journal_staff_required(roles=WORKFLOW_ROLES)
+@require_POST
+def reopen_review(request, pk):
+    """Send a revised submission back out for another round of review.
+
+    After the author revises, the editor opens round N+1. Existing reviewers can
+    be re-assigned from the detail page; a fresh review copy of the revised
+    manuscript should be prepared first.
+    """
+    submission = get_object_or_404(Submission, pk=pk)
+
+    if submission.status not in ('revised', 'with_editor', 'in_review'):
+        messages.error(request, 'This submission is not in a state that can be sent back to reviewers.')
+        return redirect('admin_submission_detail', pk=pk)
+
+    review_round = submission.open_new_round(opened_by=request.user)
+    submission.status = 'preparing'
+    submission.save(update_fields=['status'])
+
+    log_submission_action(
+        submission, request.user, f'Opened review round {review_round.number}',
+        {'round': review_round.number}
+    )
+    messages.success(
+        request,
+        f'Review round {review_round.number} opened. Prepare a review copy of the '
+        f'revised manuscript, then assign reviewers.'
+    )
+    return redirect('admin_submission_detail', pk=pk)
+
+
+@journal_staff_required(roles=WORKFLOW_ROLES)
 @require_POST
 def assign_submission(request, pk):
     """Assign a reviewer or editor to a submission"""
@@ -452,13 +641,25 @@ def assign_submission(request, pk):
 
     form = SubmissionAssignmentForm(request.POST)
     if form.is_valid():
+        # A reviewer must never receive the author's original — require a
+        # prepared review copy before a reviewer can be assigned.
+        if form.cleaned_data.get('role') == 'reviewer' and not submission.has_review_copy:
+            messages.error(
+                request,
+                'Prepare a review copy first — reviewers must not receive the '
+                'author\'s original document.'
+            )
+            return redirect('admin_submission_detail', pk=pk)
+
         assignment = form.save(commit=False)
         assignment.submission = submission
         assignment.assigned_by = request.user
+        # Attach to the current round (opening round 1 if needed).
+        assignment.review_round = submission.current_round or submission.open_new_round(opened_by=request.user)
         assignment.save()
 
         # Update submission status based on assignment
-        if assignment.role == 'reviewer' and submission.status == 'pending':
+        if assignment.role == 'reviewer' and submission.status in ('pending', 'preparing'):
             submission.status = 'in_review'
             submission.save()
         elif assignment.role == 'editor':
@@ -483,7 +684,7 @@ def assign_submission(request, pk):
     return redirect('admin_submission_detail', pk=pk)
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES)
 def request_revision(request, pk):
     """Request revisions from the author"""
     submission = get_object_or_404(Submission, pk=pk)
@@ -520,7 +721,7 @@ def request_revision(request, pk):
     })
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES)
 def upload_final_document(request, pk):
     """Upload the final approved document for extraction"""
     submission = get_object_or_404(Submission, pk=pk)
@@ -569,7 +770,7 @@ def upload_final_document(request, pk):
     })
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES)
 def preview_extracted_content(request, pk):
     """Preview extracted content before publishing"""
     submission = get_object_or_404(Submission, pk=pk)
@@ -604,11 +805,23 @@ def preview_extracted_content(request, pk):
     })
 
 
-@staff_member_required
+@journal_staff_required(roles=DECISION_ROLES)
 @require_POST
 def publish_submission(request, pk):
     """Publish the submission as an article"""
     submission = get_object_or_404(Submission, pk=pk)
+
+    # Publication is gated on the fee: if the journal charges and the fee isn't
+    # settled, hold here and notify the author to pay rather than publishing.
+    if submission.requires_payment:
+        from .payment_views import ensure_payment_requested
+        ensure_payment_requested(submission, request)
+        messages.warning(
+            request,
+            'This journal charges a publication fee. The author has been notified '
+            'to pay; you can publish once the payment clears (or waive the fee).'
+        )
+        return redirect('admin_submission_detail', pk=pk)
 
     # Handle new category creation
     category_value = request.POST.get('category', '')
@@ -672,7 +885,7 @@ def publish_submission(request, pk):
         return redirect('preview_extracted_content', pk=pk)
 
 
-@staff_member_required
+@journal_staff_required(roles=DECISION_ROLES)
 @require_POST
 def reject_submission(request, pk):
     """Reject a submission"""
@@ -689,13 +902,31 @@ def reject_submission(request, pk):
         {'reason': reason}
     )
 
-    # TODO: Send email to author
+    # Notify the author.
+    try:
+        context = {
+            'submission': submission,
+            'author': submission.author,
+            'reason': reason,
+            'site_name': 'University of Jos Journal',
+        }
+        html_message = render_to_string('emails/submission_rejected.html', context)
+        email = EmailMultiAlternatives(
+            subject=f'Decision on your submission — {submission.title or submission.anonymized_identifier}',
+            body=strip_tags(html_message),
+            from_email=get_from_email(),
+            to=[submission.author.email],
+        )
+        email.attach_alternative(html_message, "text/html")
+        email.send()
+    except Exception:
+        logger.error('Failed to send rejection email for submission %s', submission.pk, exc_info=True)
 
-    messages.success(request, 'Submission has been rejected.')
+    messages.success(request, 'Submission has been rejected and the author notified.')
     return redirect('admin_submission_detail', pk=pk)
 
 
-@staff_member_required
+@journal_staff_required(roles=DECISION_ROLES)
 def approve_submission(request, pk):
     """Approve a submission after reviewer completion"""
     submission = get_object_or_404(Submission, pk=pk)
@@ -752,7 +983,7 @@ def approve_submission(request, pk):
     })
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES)
 def share_with_author(request, pk):
     """Share reviewed document and feedback with author"""
     submission = get_object_or_404(Submission, pk=pk)
@@ -879,8 +1110,8 @@ def work_on_submission(request, pk):
         Q(recipient__isnull=True)  # Group messages
     ).select_related('sender', 'recipient')
 
-    # Get document versions
-    versions = submission.document_versions.all()
+    # Reviewers only see review copies, never the author's original upload.
+    versions = submission.document_versions.filter(is_review_copy=True)
 
     # Forms
     feedback_form = AssignmentFeedbackForm(instance=assignment)
@@ -932,7 +1163,7 @@ def send_message(request, submission_id):
     submission = get_object_or_404(Submission, pk=submission_id)
 
     # Check permission
-    if not request.user.is_staff:
+    if not has_journal_role(request.user, submission.journal, roles=WORKFLOW_ROLES):
         if submission.author != request.user:
             if not submission.assignments.filter(assigned_to=request.user).exists():
                 return JsonResponse({'error': 'Permission denied'}, status=403)
@@ -965,7 +1196,7 @@ def get_messages(request, submission_id):
     submission = get_object_or_404(Submission, pk=submission_id)
 
     # Check permission
-    if not request.user.is_staff:
+    if not has_journal_role(request.user, submission.journal, roles=WORKFLOW_ROLES):
         if submission.author != request.user:
             if not submission.assignments.filter(assigned_to=request.user).exists():
                 return JsonResponse({'error': 'Permission denied'}, status=403)
@@ -1023,13 +1254,18 @@ def download_document(request, version_id):
     is_blinded = False
     assignment = None
 
-    if not request.user.is_staff:
+    if not has_journal_role(request.user, submission.journal, roles=WORKFLOW_ROLES):
         if submission.author != request.user:
             # Check if user has an assignment for this submission
             assignment = submission.assignments.filter(assigned_to=request.user).first()
             if not assignment:
                 messages.error(request, 'You do not have permission to download this document.')
                 return redirect('dashboard')
+            # Reviewers may only download review copies — never the author's
+            # original upload, which can carry identifying content in the body.
+            if not version.is_review_copy:
+                messages.error(request, 'This document is not available for review.')
+                return redirect('work_on_submission', pk=submission.pk)
             # Check if this is a blinded review
             is_blinded = assignment.blinded
         else:
@@ -1178,8 +1414,20 @@ def send_admin_feedback_notification(assignment, request):
     html_content = render_to_string('emails/admin_guest_feedback_notification.html', context)
     text_content = strip_tags(html_content)
 
-    # Send to all staff users
-    staff_emails = CustomUser.objects.filter(is_staff=True).values_list('email', flat=True)
+    # Notify site staff plus this journal's editorial team — a chief editor who
+    # isn't site staff still needs to hear that their reviewer has reported back.
+    journal = assignment.submission.journal
+    staff_emails = set(
+        CustomUser.objects.filter(is_staff=True, is_active=True)
+        .values_list('email', flat=True)
+    )
+    staff_emails.update(
+        CustomUser.objects.filter(
+            is_active=True,
+            journal_roles__journal=journal,
+            journal_roles__role__in=WORKFLOW_ROLES,
+        ).values_list('email', flat=True)
+    )
 
     email = EmailMultiAlternatives(
         subject=f'Guest Review Feedback Received - {assignment.submission.anonymized_identifier}',
@@ -1195,7 +1443,7 @@ def send_admin_feedback_notification(assignment, request):
 # Guest Reviewer Management Views
 # ============================================================================
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES, lookup='none')
 def add_guest_reviewer(request):
     """Add a single guest reviewer and send invitation"""
     if request.method == 'POST':
@@ -1223,7 +1471,7 @@ def add_guest_reviewer(request):
     return render(request, 'submissions/admin_add_guest_reviewer.html', context)
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES, lookup='none')
 def bulk_add_guest_reviewers(request):
     """Add multiple guest reviewers from CSV"""
     if request.method == 'POST':
@@ -1264,7 +1512,7 @@ def bulk_add_guest_reviewers(request):
     return render(request, 'submissions/admin_bulk_add_guests.html', context)
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES, lookup='none')
 def manage_guest_reviewers(request):
     """List and manage all guest reviewers"""
     guest_reviewers = GuestReviewer.objects.all().order_by('-created_at')
@@ -1295,7 +1543,7 @@ def manage_guest_reviewers(request):
     return render(request, 'submissions/admin_manage_guests.html', context)
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES, lookup='none')
 def edit_guest_reviewer(request, pk):
     """Edit guest reviewer details"""
     guest_reviewer = get_object_or_404(GuestReviewer, pk=pk)
@@ -1317,7 +1565,7 @@ def edit_guest_reviewer(request, pk):
     return render(request, 'submissions/admin_add_guest_reviewer.html', context)
 
 
-@staff_member_required
+@journal_staff_required(roles=WORKFLOW_ROLES, lookup='none')
 def resend_guest_invitation(request, pk):
     """Regenerate token and resend invitation"""
     guest_reviewer = get_object_or_404(GuestReviewer, pk=pk)
@@ -1382,8 +1630,10 @@ def guest_work_on_submission(request, submission_id, access_token):
 
     submission = assignment.submission
 
-    # Get document versions
-    versions = submission.document_versions.all().order_by('-version_number')
+    # Guests only see review copies, never the author's original upload.
+    versions = submission.document_versions.filter(
+        is_review_copy=True
+    ).order_by('-version_number')
 
     # Handle feedback submission
     if request.method == 'POST' and 'submit_feedback' in request.POST:
@@ -1471,6 +1721,12 @@ def guest_download_document(request, version_id, access_token):
         messages.error(request, 'Your access has expired. Please contact the editorial office.')
         return redirect('guest_review_access', token=assignment.guest_reviewer.invitation_token)
 
+    # Guests, like logged-in reviewers, only ever receive review copies.
+    if not version.is_review_copy:
+        messages.error(request, 'This document is not available for review.')
+        return redirect('guest_work_on_submission',
+                        submission_id=submission.pk, access_token=access_token)
+
     # Get the document
     document_path = version.document.path
     filename = version.document.name.split("/")[-1]
@@ -1492,3 +1748,69 @@ def guest_download_document(request, version_id, access_token):
     response = HttpResponse(version.document, content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+# ============================================================================
+# Journal Team Management (per-journal roles)
+# ============================================================================
+
+@journal_staff_required(roles=CONTENT_ROLES, lookup='journal')
+def journal_team(request, pk):
+    """Show and grant editorial roles for one journal."""
+    journal = get_object_or_404(Journal, pk=pk)
+
+    if request.method == 'POST':
+        form = JournalRoleForm(request.POST, journal=journal)
+        if form.is_valid():
+            role = form.save(granted_by=request.user)
+            messages.success(
+                request,
+                f'{role.user.get_full_name() or role.user.email} is now '
+                f'{role.get_role_display()} of {journal.name}.'
+            )
+            return redirect('journal_team', pk=journal.pk)
+    else:
+        form = JournalRoleForm(journal=journal)
+
+    roles = (
+        journal.roles
+        .select_related('user', 'granted_by')
+        .order_by('role', 'user__email')
+    )
+
+    return render(request, 'submissions/journal_team.html', {
+        'journal': journal,
+        'roles': roles,
+        'form': form,
+        'site_admins': CustomUser.objects.filter(
+            is_staff=True, is_active=True
+        ).order_by('email'),
+    })
+
+
+@journal_staff_required(roles=CONTENT_ROLES, lookup='journal')
+@require_POST
+def journal_role_revoke(request, pk, role_id):
+    """Revoke one editorial role."""
+    journal = get_object_or_404(Journal, pk=pk)
+    role = get_object_or_404(JournalRole, pk=role_id, journal=journal)
+
+    # Don't let the last chief editor remove themselves and lock the journal's
+    # team management out (only chief editors and site staff can manage it).
+    # Site staff can always recover it, but the dead end is worth blocking.
+    if role.user == request.user and role.role == JournalRole.ROLE_CHIEF_EDITOR:
+        remaining = JournalRole.objects.filter(
+            journal=journal, role=JournalRole.ROLE_CHIEF_EDITOR
+        ).exclude(pk=role.pk).exists()
+        if not remaining:
+            messages.error(
+                request,
+                'You are the only Chief Editor. Grant the role to someone else '
+                'before removing your own.'
+            )
+            return redirect('journal_team', pk=journal.pk)
+
+    label = f'{role.user.email} ({role.get_role_display()})'
+    role.delete()
+    messages.success(request, f'Removed {label} from {journal.name}.')
+    return redirect('journal_team', pk=journal.pk)

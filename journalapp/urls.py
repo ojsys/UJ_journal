@@ -2,6 +2,9 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
 from . import submission_views
+from . import content_views
+from . import reviewer_views
+from . import payment_views
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -18,6 +21,7 @@ urlpatterns = [
     # Department Journal URLs
     path('departments/<int:department_id>/journal/', views.department_journal, name='department_journal'),
     path('journals/', views.JournalListView.as_view(), name='journal_list'),
+    path('journals/<int:pk>/', views.journal_detail, name='journal_detail'),
     
     # Article URLs (renamed from Journal)
     path('articles/', views.ArticleListView.as_view(), name='article_list'),
@@ -70,11 +74,55 @@ urlpatterns = [
     path('submissions/', submission_views.submission_list, name='submission_list'),
     path('submissions/new/', submission_views.submission_create, name='submission_create'),
     path('submissions/<int:pk>/', submission_views.submission_detail, name='submission_detail'),
+    path('submissions/<int:pk>/edit/', submission_views.submission_edit, name='submission_edit'),
     path('submissions/<int:pk>/revise/', submission_views.submission_revise, name='submission_revise'),
+
+    # Volunteer peer reviewer portal (public)
+    path('reviewers/apply/', reviewer_views.reviewer_apply, name='reviewer_apply'),
+    path('reviewers/apply/thanks/', reviewer_views.reviewer_apply_thanks, name='reviewer_apply_thanks'),
+
+    # Volunteer reviewer applications (editorial)
+    path('manage/reviewer-applications/', reviewer_views.reviewer_applications_list, name='reviewer_applications_list'),
+    path('manage/reviewer-applications/<int:pk>/', reviewer_views.reviewer_application_detail, name='reviewer_application_detail'),
+    path('manage/reviewer-applications/<int:pk>/decide/', reviewer_views.reviewer_application_decide, name='reviewer_application_decide'),
+
+    # Journal management hub (team + rubrics + checklist per journal)
+    path('manage/journals/', content_views.journal_manage_list, name='journal_manage_list'),
+
+    # Journal team (per-journal editorial roles)
+    path('manage/journals/<int:pk>/team/', submission_views.journal_team, name='journal_team'),
+    path('manage/journals/<int:pk>/team/<int:role_id>/revoke/',
+         submission_views.journal_role_revoke, name='journal_role_revoke'),
+
+    # Journal review rubrics
+    path('manage/journals/<int:pk>/rubrics/', content_views.journal_rubrics, name='journal_rubrics'),
+    path('manage/journals/<int:pk>/rubrics/<int:rubric_id>/edit/',
+         content_views.rubric_update, name='rubric_update'),
+    path('manage/journals/<int:pk>/rubrics/<int:rubric_id>/delete/',
+         content_views.rubric_delete, name='rubric_delete'),
+
+    # Journal submission checklist
+    path('manage/journals/<int:pk>/checklist/', content_views.journal_checklist, name='journal_checklist'),
+    path('manage/journals/<int:pk>/checklist/<int:item_id>/edit/',
+         content_views.checklist_item_update, name='checklist_item_update'),
+    path('manage/journals/<int:pk>/checklist/<int:item_id>/delete/',
+         content_views.checklist_item_delete, name='checklist_item_delete'),
+
+    # Journal publication fee
+    path('manage/journals/<int:pk>/fee/', content_views.journal_fee, name='journal_fee'),
+
+    # Payments (publication fee)
+    path('manage/submissions/<int:pk>/request-payment/', payment_views.request_payment, name='request_payment'),
+    path('manage/submissions/<int:pk>/waive-payment/', payment_views.waive_payment, name='waive_payment'),
+    path('submissions/<int:pk>/pay/', payment_views.pay, name='pay_submission'),
+    path('payments/callback/', payment_views.paystack_callback, name='paystack_callback'),
+    path('payments/webhook/', payment_views.paystack_webhook, name='paystack_webhook'),
 
     # Admin submission management URLs
     path('manage/submissions/', submission_views.admin_submission_list, name='admin_submission_list'),
     path('manage/submissions/<int:pk>/', submission_views.admin_submission_detail, name='admin_submission_detail'),
+    path('manage/submissions/<int:pk>/prepare/', submission_views.prepare_for_review, name='prepare_for_review'),
+    path('manage/submissions/<int:pk>/reopen/', submission_views.reopen_review, name='reopen_review'),
     path('manage/submissions/<int:pk>/assign/', submission_views.assign_submission, name='assign_submission'),
     path('manage/submissions/<int:pk>/request-revision/', submission_views.request_revision, name='request_revision'),
     path('manage/submissions/<int:pk>/upload-final/', submission_views.upload_final_document, name='upload_final_document'),

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New reviewer application</title>
+    <style>
+        body { font-family: 'Lucida Grande', 'Lucida Sans Unicode', 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9f9f9; }
+        .email-container { max-width: 600px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: #fff; padding: 24px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+        .content { padding: 30px; }
+        .details { background:#f8f9fa; border-radius:6px; padding:16px; margin:16px 0; }
+        .details p { margin: 4px 0; }
+        .btn { display:inline-block; background:#4F46E5; color:#fff !important; text-decoration:none; padding:10px 18px; border-radius:8px; margin-top:12px; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header"><h1>New reviewer application</h1></div>
+        <div class="content">
+            <p>A new volunteer reviewer application has been submitted.</p>
+            <div class="details">
+                <p><strong>Name:</strong> {{ application.get_full_name }}</p>
+                <p><strong>Email:</strong> {{ application.email }}</p>
+                {% if application.affiliation %}<p><strong>Affiliation:</strong> {{ application.affiliation }}</p>{% endif %}
+                {% if application.expertise_areas %}<p><strong>Expertise:</strong> {{ application.expertise_areas }}</p>{% endif %}
+            </div>
+            <a href="{{ manage_url }}" class="btn">Review application</a>
+        </div>
+        <div class="footer"><p>&copy; {% now "Y" %} University of Jos Journal System.</p></div>
+    </div>
+</body>
+</html>

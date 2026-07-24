@@ -3,7 +3,8 @@ from .models import (
     CustomUser, Department, Profile, ArticleCategory, Article,
     Review, Comment, SiteSettings, HeroSlide, ArchivedJournal,
     Journal, Rubric, Submission, Assignment, SubmissionMessage,
-    DocumentVersion, SubmissionLog
+    DocumentVersion, SubmissionLog, JournalRole, ChecklistItem, ChecklistResponse,
+    ReviewRound, ReviewerApplication, JournalFee, Payment
 )
 
 
@@ -32,11 +33,39 @@ class DepartmentAdmin(admin.ModelAdmin):
     list_display = ('name', 'code')
     search_fields = ('name', 'code')
 
+class JournalRoleInline(admin.TabularInline):
+    model = JournalRole
+    extra = 0
+    fk_name = 'journal'
+    autocomplete_fields = ('user',)
+    readonly_fields = ('granted_at',)
+    fields = ('user', 'role', 'granted_by', 'granted_at')
+
+
 @admin.register(Journal)
 class JournalAdmin(admin.ModelAdmin):
-    list_display = ('name', 'department')
+    list_display = ('name', 'department', 'team_size')
     list_filter = ('department',)
     search_fields = ('name',)
+    inlines = [JournalRoleInline]
+
+    @admin.display(description='Editorial team')
+    def team_size(self, obj):
+        return obj.roles.count()
+
+
+@admin.register(JournalRole)
+class JournalRoleAdmin(admin.ModelAdmin):
+    list_display = ('user', 'journal', 'role', 'granted_by', 'granted_at')
+    list_filter = ('role', 'journal')
+    search_fields = ('user__email', 'user__first_name', 'user__last_name', 'journal__name')
+    autocomplete_fields = ('user', 'journal')
+    readonly_fields = ('granted_at',)
+
+    def save_model(self, request, obj, form, change):
+        if not change and not obj.granted_by:
+            obj.granted_by = request.user
+        super().save_model(request, obj, form, change)
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
@@ -86,6 +115,25 @@ class RubricAdmin(admin.ModelAdmin):
     list_filter = ('journal',)
     list_editable = ('order',)
     search_fields = ('title',)
+
+
+@admin.register(ChecklistItem)
+class ChecklistItemAdmin(admin.ModelAdmin):
+    list_display = ('text', 'journal', 'required', 'is_active', 'order')
+    list_filter = ('journal', 'required', 'is_active')
+    list_editable = ('required', 'is_active', 'order')
+    search_fields = ('text',)
+
+
+@admin.register(ChecklistResponse)
+class ChecklistResponseAdmin(admin.ModelAdmin):
+    list_display = ('submission', 'item_text', 'checked', 'responded_at')
+    list_filter = ('checked', 'responded_at')
+    search_fields = ('submission__title', 'item_text')
+    readonly_fields = ('submission', 'item', 'item_text', 'checked', 'responded_at')
+
+    def has_add_permission(self, request):
+        return False
 
 @admin.register(ArchivedJournal)
 class ArchivedJournalAdmin(admin.ModelAdmin):
@@ -179,11 +227,46 @@ class SubmissionMessageAdmin(admin.ModelAdmin):
 
 @admin.register(DocumentVersion)
 class DocumentVersionAdmin(admin.ModelAdmin):
-    list_display = ('submission', 'version_number', 'uploaded_by', 'is_final', 'uploaded_at')
-    list_filter = ('is_final', 'uploaded_at')
+    list_display = ('submission', 'version_number', 'uploaded_by', 'is_final', 'is_review_copy', 'uploaded_at')
+    list_filter = ('is_final', 'is_review_copy', 'uploaded_at')
     search_fields = ('submission__title', 'uploaded_by__email', 'notes')
     readonly_fields = ('uploaded_at', 'version_number')
     date_hierarchy = 'uploaded_at'
+
+
+@admin.register(ReviewRound)
+class ReviewRoundAdmin(admin.ModelAdmin):
+    list_display = ('submission', 'number', 'opened_at', 'closed_at', 'opened_by')
+    list_filter = ('opened_at',)
+    search_fields = ('submission__title',)
+    readonly_fields = ('opened_at',)
+
+
+@admin.register(JournalFee)
+class JournalFeeAdmin(admin.ModelAdmin):
+    list_display = ('journal', 'amount', 'currency', 'is_active', 'updated_at')
+    list_filter = ('is_active', 'currency')
+    search_fields = ('journal__name',)
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'submission', 'author', 'amount', 'currency', 'status', 'paid_at')
+    list_filter = ('status', 'currency', 'created_at')
+    search_fields = ('reference', 'paystack_reference', 'author__email', 'submission__title')
+    readonly_fields = ('reference', 'paystack_reference', 'raw_response', 'paid_at',
+                       'created_at', 'updated_at')
+    date_hierarchy = 'created_at'
+
+
+@admin.register(ReviewerApplication)
+class ReviewerApplicationAdmin(admin.ModelAdmin):
+    list_display = ('get_full_name', 'email', 'affiliation', 'status', 'created_at', 'reviewed_by')
+    list_filter = ('status', 'created_at')
+    search_fields = ('first_name', 'last_name', 'email', 'affiliation', 'expertise_areas')
+    filter_horizontal = ('journals_of_interest',)
+    readonly_fields = ('created_at', 'updated_at', 'reviewed_at', 'created_user', 'guest_reviewer')
+    date_hierarchy = 'created_at'
 
 
 @admin.register(SubmissionLog)

@@ -29,6 +29,9 @@ from .models import (
     HeroSlide, ArchivedJournal, Journal, ArticleLog, Rubric, Submission,
     Assignment, SubmissionMessage
 )
+from .permissions import (
+    journals_for, can_manage_any_journal, WORKFLOW_ROLES,
+)
 from .utils import get_from_email
 from .forms import (
     UserRegisterForm, ProfileUpdateForm, UserUpdateForm, ArticleForm,
@@ -219,7 +222,7 @@ def profile(request):
 
 @login_required
 def dashboard(request):
-    if request.user.is_staff:
+    if request.user.is_staff or can_manage_any_journal(request.user, roles=WORKFLOW_ROLES):
         return redirect('admin_dashboard')
     elif getattr(request.user, 'profile', None) and request.user.profile.is_reviewer:
         return redirect('reviewer_dashboard')
@@ -231,58 +234,38 @@ def dashboard(request):
 @login_required
 def author_dashboard(request):
     # Get user's submissions (new workflow)
-    user_submissions = Submission.objects.filter(author=request.user).order_by('-submitted_at')
+    user_submissions = Submission.objects.filter(
+        author=request.user
+    ).select_related('journal').order_by('-submitted_at')
 
     # Get user's articles (legacy - for backward compatibility)
     user_articles = Article.objects.filter(author=request.user).order_by('-created_at')
 
     journals = Journal.objects.all()
 
-    # Submission stats
-    submission_stats = {
-        'total': user_submissions.count(),
-        'pending': user_submissions.filter(status='pending').count(),
-        'in_review': user_submissions.filter(status='in_review').count(),
-        'with_editor': user_submissions.filter(status='with_editor').count(),
-        'revision_requested': user_submissions.filter(status='revision_requested').count(),
-        'revised': user_submissions.filter(status='revised').count(),
-        'approved': user_submissions.filter(status='approved').count(),
-        'published': user_submissions.filter(status='published').count(),
-        'rejected': user_submissions.filter(status='rejected').count(),
-    }
-
     # Recent submissions (last 5)
     recent_submissions = user_submissions[:5]
 
-    # Submissions requiring action (revision requested)
+    # Submissions requiring action (revision requested) — actionable, not a
+    # status browser, so this stays even though the stats tiles were removed.
     action_required = user_submissions.filter(status='revision_requested')
 
     # Submissions with feedback available (completed assignments)
-    # These are submissions that have at least one completed review
     feedback_available = user_submissions.filter(
         assignments__status='completed'
     ).distinct().prefetch_related(
         'assignments__assigned_to'
     ).order_by('-updated_at')[:5]
 
-    # Add feedback count to stats
-    submission_stats['with_feedback'] = user_submissions.filter(
-        assignments__status='completed'
-    ).distinct().count()
-
     context = {
         'user_submissions': user_submissions,
         'recent_submissions': recent_submissions,
         'action_required': action_required,
         'feedback_available': feedback_available,
-        'submission_stats': submission_stats,
         'user_articles': user_articles,
         'journals': journals,
-        # Legacy stats for backward compatibility
+        # Legacy stat still used by the "My published articles" section.
         'published_count': user_articles.filter(status='published').count(),
-        'under_review_count': user_articles.filter(status__in=['submitted', 'under_review']).count(),
-        'draft_count': user_articles.filter(status='draft').count(),
-        'total_count': user_articles.count(),
     }
     return render(request, 'journalapp/author_dashboard.html', context)
 
@@ -398,11 +381,18 @@ def reviewer_dashboard(request):
 
 @login_required
 def admin_dashboard(request):
-    if not request.user.is_staff:
+    # Scope everything on this page to the journals the user may act on. Site
+    # staff get every journal back from journals_for(), so their view is
+    # unchanged; a journal chief editor sees only their own journal's figures.
+    permitted_journals = journals_for(request.user, roles=WORKFLOW_ROLES)
+    if not permitted_journals.exists():
         return redirect('dashboard')
 
-    # Get all submissions with related data
-    all_submissions = Submission.objects.all().select_related('author', 'journal')
+    all_submissions = (
+        Submission.objects
+        .filter(journal__in=permitted_journals)
+        .select_related('author', 'journal')
+    )
 
     # Submission stats by status
     submission_stats = {
@@ -451,7 +441,7 @@ def admin_dashboard(request):
     ).count()
 
     # Journal stats
-    journals = Journal.objects.all()
+    journals = permitted_journals
     journal_stats = []
     for journal in journals:
         journal_stats.append({
@@ -564,6 +554,22 @@ def send_revision_notification(request, article):
         logger.info("Revision notification email sent to %s", to_email)
     except Exception as e:
         logger.error("Error sending revision notification email to %s: %s", to_email, e, exc_info=True)
+
+
+def journal_detail(request, pk):
+    """Public page for a single journal: about, rubrics, checklist, articles."""
+    journal = get_object_or_404(Journal.objects.select_related('department'), pk=pk)
+    published_articles = Article.objects.filter(
+        journal=journal, status='published'
+    ).select_related('author', 'category').order_by('-published_at')
+
+    context = {
+        'journal': journal,
+        'articles': published_articles,
+        'rubrics': journal.rubrics.all(),
+        'checklist_items': journal.checklist_items.filter(is_active=True),
+    }
+    return render(request, 'journalapp/journal_detail.html', context)
 
 
 def department_journal(request, department_id):

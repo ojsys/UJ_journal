@@ -1,10 +1,12 @@
 {% comment %}Renders a status pill for a Submission. Expects: status (the submission.status value).{% endcomment %}
 {% if status == 'pending' %}<span class="uj-pill uj-pill--warn">Pending review</span>
+{% elif status == 'preparing' %}<span class="uj-pill uj-pill--brand">Preparing for review</span>
 {% elif status == 'in_review' %}<span class="uj-pill uj-pill--info">In review</span>
 {% elif status == 'with_editor' %}<span class="uj-pill uj-pill--brand">With editor</span>
 {% elif status == 'revision_requested' %}<span class="uj-pill uj-pill--danger">Revision requested</span>
 {% elif status == 'revised' %}<span class="uj-pill">Revised</span>
 {% elif status == 'approved' %}<span class="uj-pill uj-pill--success">Approved</span>
+{% elif status == 'awaiting_payment' %}<span class="uj-pill uj-pill--warn">Awaiting payment</span>
 {% elif status == 'published' %}<span class="uj-pill uj-pill--success">Published</span>
 {% elif status == 'rejected' %}<span class="uj-pill uj-pill--danger">Rejected</span>
 {% else %}<span class="uj-pill">{{ status|capfirst }}</span>{% endif %}

@@ -177,7 +177,7 @@
                             {% if article.author.profile.profile_picture %}
                             <img src="{{ article.author.profile.profile_picture.url }}" alt="{{ article.author.get_full_name }}" class="rounded-circle" width="56" height="56" style="object-fit:cover;">
                             {% else %}
-                            <span class="uj-brand-mark" style="width:56px;height:56px;border-radius:50%;font-size:22px;font-family:var(--uj-font-display);font-weight:700;">{{ article.author.first_name|first|upper }}</span>
+                            <span class="uj-brand-mark" style="width:56px;height:56px;border-radius:50%;font-size:21px;font-family:var(--uj-font-heading);font-weight:700;">{{ article.author.first_name|first|upper }}</span>
                             {% endif %}
                             <div>
                                 <h6 class="mb-0">{{ article.author.get_full_name|default:article.author.first_name }}</h6>

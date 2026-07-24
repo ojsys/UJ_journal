@@ -19,7 +19,7 @@
                 {% if department.cover_image %}
                 <img src="{{ department.cover_image.url }}" alt="{{ department.name }}" class="img-fluid journal-cover">
                 {% else %}
-                <div class="journal-cover d-flex align-items-center justify-content-center mx-auto" style="height:260px; background:rgba(255,255,255,0.14); font-family:var(--uj-font-display); font-weight:700; font-size:44px;">{{ department.code }}</div>
+                <div class="journal-cover d-flex align-items-center justify-content-center mx-auto" style="height:260px; background:rgba(255,255,255,0.14); font-family:var(--uj-font-heading); font-weight:700; font-size:40px;">{{ department.code }}</div>
                 {% endif %}
             </div>
             <div class="col-md-9">

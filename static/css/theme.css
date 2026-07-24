@@ -1,6 +1,6 @@
 /* =====================================================================
    UniJos Journal System — Design System (theme.css)
-   Space Grotesk (display/UI) + Manrope (body), indigo→violet palette.
+   Corben (headings) + Lucida Grande / Nunito Sans (body & UI), indigo→violet palette.
    Re-skins Bootstrap 5 globally. No markup logic depends on this file.
    ===================================================================== */
 
@@ -59,9 +59,17 @@
     --uj-glow:      0 4px 16px rgba(79,70,229,0.32);
     --uj-glow-hover:0 8px 22px rgba(79,70,229,0.42);
 
-    /* Fonts */
-    --uj-font-display: 'Space Grotesk', system-ui, sans-serif;
-    --uj-font-body:    'Manrope', system-ui, sans-serif;
+    /* Fonts — friendly humanist stack (in the spirit of unijos.edu.ng)
+       --uj-font-heading : Corben, the rounded slab used for real headings/brand.
+       --uj-font-body    : Lucida Grande where installed (macOS/Windows), with
+                           Nunito Sans as the webfont fallback elsewhere.
+       --uj-font-display : UI chrome (buttons, pills, nav, table heads). Kept as
+                           its own token — every existing rule/template already
+                           points at it — but it now tracks the body face so the
+                           interface reads as one family. */
+    --uj-font-heading: 'Corben', 'Lucida Grande', Georgia, serif;
+    --uj-font-body:    'Lucida Grande', 'Lucida Sans Unicode', 'Lucida Sans', 'Nunito Sans', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    --uj-font-display: var(--uj-font-body);
 
     /* Map SiteSettings' color onto brand vars when provided (see base.html) */
     --primary-color:   var(--uj-indigo);
@@ -92,11 +100,18 @@ body {
 
 h1, h2, h3, h4, h5, h6,
 .display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
-    font-family: var(--uj-font-display);
+    font-family: var(--uj-font-heading);
     font-weight: 700;
     color: var(--uj-ink);
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
 }
+/* Corben ships only 400/700 — never let the browser synthesise in between. */
+h1, h2, h3, h4, h5, h6 { font-synthesis-weight: none; }
+/* Corben is a slab: at 700 it gets dense below ~24px, so small headings and
+   card titles run at 400, which still reads as a heading against the sans body. */
+h4, h5, h6, .card-title, .uj-footer h5 { font-weight: 400; }
+h1 b, h1 strong, h2 b, h2 strong, h3 b, h3 strong,
+h4 b, h4 strong, h5 b, h5 strong, h6 b, h6 strong { font-weight: 700; }
 
 a { color: var(--uj-indigo-700); text-decoration: none; }
 a:hover { color: var(--uj-indigo-800); }
@@ -294,8 +309,8 @@ a:hover { color: var(--uj-indigo-800); }
 }
 .uj-brand {
     display: inline-flex; align-items: center; gap: 9px;
-    font-family: var(--uj-font-display);
-    font-weight: 700; font-size: 17px;
+    font-family: var(--uj-font-heading);
+    font-weight: 700; font-size: 16px;
     color: var(--uj-ink);
 }
 .uj-brand:hover { color: var(--uj-ink); }
@@ -354,8 +369,8 @@ a:hover { color: var(--uj-indigo-800); }
     margin-top: 5rem;
 }
 .uj-footer h5 {
-    font-family: var(--uj-font-display);
-    color: #fff; font-weight: 700; font-size: 15px;
+    font-family: var(--uj-font-heading);
+    color: #fff; font-weight: 400; font-size: 15px;
     text-transform: none; letter-spacing: 0;
     margin-bottom: 1.1rem;
 }
@@ -379,7 +394,7 @@ a:hover { color: var(--uj-indigo-800); }
     color: var(--uj-indigo);
 }
 .section-title {
-    font-family: var(--uj-font-display);
+    font-family: var(--uj-font-heading);
     font-weight: 700; color: var(--uj-ink);
     position: relative; margin-bottom: 1.5rem;
 }
@@ -393,7 +408,7 @@ a:hover { color: var(--uj-indigo-800); }
     padding: 1.1rem 1.25rem;
     box-shadow: var(--uj-shadow-sm);
 }
-.uj-stat__value { font-family: var(--uj-font-display); font-weight: 700; font-size: 26px; color: var(--uj-ink); line-height: 1.1; }
+.uj-stat__value { font-family: var(--uj-font-heading); font-weight: 700; font-size: 25px; color: var(--uj-ink); line-height: 1.15; }
 .uj-stat__label { font-size: 12.5px; color: var(--uj-muted-2); font-weight: 600; }
 
 /* ---------- Activity timeline ---------- */
@@ -438,6 +453,9 @@ a:hover { color: var(--uj-indigo-800); }
 }
 .uj-divider { height: 1px; background: var(--uj-border-2); border: 0; }
 
+/* Honeypot field — hidden from humans, left for bots to trip on. */
+.uj-hp { position: absolute !important; left: -9999px !important; width: 1px; height: 1px; overflow: hidden; }
+
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--uj-surface-2); }
 ::-webkit-scrollbar-thumb { background: var(--uj-border-3); border-radius: var(--uj-r-pill); border: 2px solid var(--uj-surface-2); }
@@ -453,7 +471,7 @@ a:hover { color: var(--uj-indigo-800); }
     border-radius: var(--uj-r-xl);
 }
 .cta-section { background: linear-gradient(135deg, var(--uj-indigo), var(--uj-violet) 55%, var(--uj-pink)) !important; border-radius: var(--uj-r-xl); }
-.section-heading, .section-title { font-family: var(--uj-font-display); font-weight: 700; color: var(--uj-ink); }
+.section-heading, .section-title { font-family: var(--uj-font-heading); font-weight: 700; color: var(--uj-ink); }
 .section-heading::after { background: var(--uj-indigo) !important; }
 /* Legacy dark dashboard sidebars (only dead templates still use these) */
 .dashboard-container .sidebar { background: var(--uj-ink) !important; border-radius: var(--uj-r-lg); }
@@ -461,7 +479,7 @@ a:hover { color: var(--uj-indigo-800); }
 /* Contextual card headers become on-brand via bg-primary remap; ensure text stays readable */
 .card-header.bg-primary, .card-header.bg-info, .card-header.bg-success, .card-header.bg-warning, .card-header.bg-dark, .card-header.bg-secondary { color: #fff !important; }
 .card-header.bg-warning { color: var(--uj-ink) !important; }
-.stat-number { font-family: var(--uj-font-display); font-weight: 700; }
+.stat-number { font-family: var(--uj-font-heading); font-weight: 700; }
 
 /* Toasts keep animation but adopt radius */
 .toast { border-radius: var(--uj-r); box-shadow: var(--uj-shadow); overflow: hidden; }

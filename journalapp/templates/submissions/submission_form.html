@@ -95,11 +95,39 @@
                 <small class="text-muted">Include any declarations or notes for the editorial team.</small>
             </div></div>
 
+            <!-- Step 4: per-journal submission checklist (revealed for the chosen journal) -->
+            {% for journal in journals %}
+                {% with active_items=journal.checklist_items.all %}
+                {% if active_items %}
+                <div class="card mb-4 journal-checklist" data-journal-id="{{ journal.pk }}" style="display:none;">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-3"><span class="step-number">4</span><span class="step-title">Submission checklist</span></div>
+                        <p class="text-muted" style="font-size:14px;">Please confirm the following before submitting to <strong>{{ journal.name }}</strong>.</p>
+                        {% if checklist_error %}<div class="alert alert-danger" style="font-size:14px;"><i class="material-icons align-middle me-1" style="font-size:18px;">error</i>{{ checklist_error }}</div>{% endif %}
+                        {% for item in active_items %}
+                            {% if item.is_active %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="checklist_{{ item.pk }}" id="checklist_{{ item.pk }}" value="1"
+                                       {% if item.pk in checked_ids %}checked{% endif %}>
+                                <label class="form-check-label" for="checklist_{{ item.pk }}" style="font-size:14.5px;">
+                                    {{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}
+                                    {% if item.help_text %}<small class="text-muted d-block">{{ item.help_text }}</small>{% endif %}
+                                </label>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        <p class="text-muted mt-2 mb-0" style="font-size:12px;"><span class="text-danger">*</span> required</p>
+                    </div>
+                </div>
+                {% endif %}
+                {% endwith %}
+            {% endfor %}
+
             <div class="alert alert-info mb-4">
                 <h6 class="mb-2"><i class="material-icons align-middle me-1" style="font-size:18px;">lightbulb</i> Before you submit</h6>
                 <ul class="mb-0" style="font-size:14px;">
                     <li>Ensure your manuscript follows the journal's formatting guidelines</li>
-                    <li>Remove any identifying information for blind peer review</li>
+                    <li><strong>Keep your name and affiliation in the document</strong> — we anonymise it automatically before reviewers see it, so you don't need to strip anything out.</li>
                     <li>Include all figures, tables, and references in the document</li>
                     <li>You'll receive email notifications about your submission status</li>
                 </ul>
@@ -119,8 +147,26 @@
     function selectJournal(journalId) {
         document.getElementById('selected-journal').value = journalId;
         document.querySelectorAll('.journal-card').forEach(card => card.classList.remove('selected'));
-        document.querySelector(`[data-journal-id="${journalId}"]`).classList.add('selected');
+        const card = document.querySelector(`.journal-card[data-journal-id="${journalId}"]`);
+        if (card) card.classList.add('selected');
+        showChecklistFor(journalId);
     }
+
+    // Reveal only the selected journal's checklist; disable inputs in the hidden
+    // ones so they never post for a different journal.
+    function showChecklistFor(journalId) {
+        document.querySelectorAll('.journal-checklist').forEach(block => {
+            const match = block.dataset.journalId === String(journalId);
+            block.style.display = match ? 'block' : 'none';
+            block.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.disabled = !match; });
+        });
+    }
+
+    // On load (e.g. after a validation error) reveal the already-selected journal.
+    document.addEventListener('DOMContentLoaded', function () {
+        const selected = document.getElementById('selected-journal').value;
+        if (selected) showChecklistFor(selected);
+    });
 
     const fileInput = document.getElementById('id_document');
     const uploadArea = document.getElementById('file-upload-area');

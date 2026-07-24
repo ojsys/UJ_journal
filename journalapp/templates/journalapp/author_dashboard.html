@@ -17,34 +17,6 @@
         </a>
     </div>
 
-    <!-- Stats -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
-            <div class="uj-stat h-100">
-                <div class="uj-stat__value" style="color:var(--uj-warn-fg);">{{ submission_stats.pending }}</div>
-                <div class="uj-stat__label">Pending review</div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="uj-stat h-100">
-                <div class="uj-stat__value" style="color:var(--uj-info-fg);">{{ submission_stats.in_review|add:submission_stats.with_editor }}</div>
-                <div class="uj-stat__label">In review</div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="uj-stat h-100">
-                <div class="uj-stat__value" style="color:var(--uj-success-fg);">{{ submission_stats.published }}</div>
-                <div class="uj-stat__label">Published</div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="uj-stat h-100">
-                <div class="uj-stat__value">{{ submission_stats.total }}</div>
-                <div class="uj-stat__label">Total submissions</div>
-            </div>
-        </div>
-    </div>
-
     <!-- Action required -->
     {% if action_required %}
     <div class="alert alert-danger mb-4">
@@ -113,7 +85,9 @@
                             <td class="text-end pe-4">
                                 <a href="{% url 'submission_detail' submission.pk %}" class="btn btn-outline-primary btn-sm" title="View"><i class="material-icons" style="font-size:15px;">visibility</i></a>
                                 {% if submission.status == 'revision_requested' %}
-                                <a href="{% url 'submission_revise' submission.pk %}" class="btn btn-primary btn-sm" title="Revise"><i class="material-icons" style="font-size:15px;">edit</i></a>
+                                <a href="{% url 'submission_revise' submission.pk %}" class="btn btn-primary btn-sm" title="Submit revision"><i class="material-icons" style="font-size:15px;">upload_file</i></a>
+                                {% elif submission.is_editable_by_author %}
+                                <a href="{% url 'submission_edit' submission.pk %}" class="btn btn-light btn-sm" title="Edit"><i class="material-icons" style="font-size:15px;">edit</i></a>
                                 {% endif %}
                                 {% if submission.status == 'published' and submission.published_article %}
                                 <a href="{% url 'article_detail' submission.published_article.pk %}" class="btn btn-success btn-sm" title="View published"><i class="material-icons" style="font-size:15px;">public</i></a>

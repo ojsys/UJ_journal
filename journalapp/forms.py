@@ -8,7 +8,8 @@ from .models import (
     Profile, Article, Review, Comment, Department, SiteSettings,
     HeroSlide, ArticleCategory, ArchivedJournal, Journal,
     Submission, Assignment, SubmissionMessage, DocumentVersion,
-    GuestReviewer
+    GuestReviewer, JournalRole, Rubric, ChecklistItem, ReviewerApplication,
+    JournalFee
 )
 
 User = get_user_model()
@@ -241,6 +242,42 @@ class SubmissionForm(forms.ModelForm):
         return document
 
 
+class SubmissionEditForm(forms.ModelForm):
+    """Let an author correct their submission and optionally replace the file.
+
+    The document is optional here: an author fixing a typo in the title or cover
+    letter shouldn't be forced to re-upload. When a file *is* supplied it becomes
+    a new DocumentVersion (handled in the view), so nothing is overwritten.
+    """
+    new_document = forms.FileField(
+        required=False,
+        label='Replace manuscript (optional)',
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.doc,.docx'}),
+        help_text='Leave empty to keep your current file. Uploading here adds a new version.',
+    )
+
+    class Meta:
+        model = Submission
+        fields = ['title', 'cover_letter']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'cover_letter': forms.Textarea(attrs={
+                'class': 'form-control', 'rows': 5,
+                'placeholder': 'Optional cover letter or notes for the editor...',
+            }),
+        }
+
+    def clean_new_document(self):
+        document = self.cleaned_data.get('new_document')
+        if document:
+            ext = document.name.split('.')[-1].lower()
+            if ext not in ['doc', 'docx']:
+                raise forms.ValidationError('Only Word documents (.doc, .docx) are allowed.')
+            if document.size > 10 * 1024 * 1024:
+                raise forms.ValidationError('File size must be under 10MB.')
+        return document
+
+
 class SubmissionAssignmentForm(forms.ModelForm):
     """Form for admin to assign reviewers or editors to submissions"""
     class Meta:
@@ -350,6 +387,33 @@ class DocumentVersionForm(forms.ModelForm):
             'document': 'Upload Document',
             'is_final': 'Mark as Final Version',
         }
+
+
+class ReviewCopyUploadForm(forms.Form):
+    """Chief Editor uploads a de-identified copy for reviewers to download."""
+    document = forms.FileField(
+        label='Review-ready manuscript',
+        help_text='Upload a de-identified copy (author name and affiliation '
+                  'removed). This is what reviewers will download.',
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.doc,.docx'})
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control', 'rows': 2,
+            'placeholder': 'Optional note about this review copy...',
+        })
+    )
+
+    def clean_document(self):
+        document = self.cleaned_data.get('document')
+        if document:
+            ext = document.name.split('.')[-1].lower()
+            if ext not in ['doc', 'docx']:
+                raise forms.ValidationError('Only Word documents (.doc, .docx) are allowed.')
+            if document.size > 10 * 1024 * 1024:
+                raise forms.ValidationError('File size must be under 10MB.')
+        return document
 
 
 class FinalDocumentUploadForm(forms.Form):
@@ -692,3 +756,227 @@ class AssignGuestReviewerForm(forms.Form):
 
 
 ################### End Submission Workflow Forms #########################
+
+################### Journal Role Forms #########################
+
+class JournalRoleForm(forms.ModelForm):
+    """Grant a user an editorial role on one journal.
+
+    Identifies the user by email rather than a dropdown: the user list grows
+    without bound, and an admin adding a colleague knows their email, not their
+    position in a <select>.
+    """
+    email = forms.EmailField(
+        label='User email',
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'colleague@unijos.edu.ng',
+        }),
+        help_text='The user must already have an account on the platform.'
+    )
+
+    class Meta:
+        model = JournalRole
+        fields = ('role',)
+        widgets = {
+            'role': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, journal=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.journal = journal
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        try:
+            self.user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            raise forms.ValidationError(
+                'No account with that email. Ask them to register first, '
+                'then grant the role.'
+            )
+        if not self.user.is_active:
+            raise forms.ValidationError('That account is deactivated.')
+        return email
+
+    def clean(self):
+        cleaned = super().clean()
+        user = getattr(self, 'user', None)
+        role = cleaned.get('role')
+        if user and role and self.journal:
+            if JournalRole.objects.filter(
+                user=user, journal=self.journal, role=role
+            ).exists():
+                raise forms.ValidationError(
+                    f'{user.email} is already {dict(JournalRole.ROLE_CHOICES)[role]} '
+                    f'of {self.journal.name}.'
+                )
+        return cleaned
+
+    def save(self, commit=True, granted_by=None):
+        role = super().save(commit=False)
+        role.user = self.user
+        role.journal = self.journal
+        role.granted_by = granted_by
+        if commit:
+            role.save()
+        return role
+
+
+################### End Journal Role Forms #########################
+
+
+################### Journal Content Forms (rubrics + checklist) #########################
+
+class RubricForm(forms.ModelForm):
+    """A review rubric / guideline entry for a journal."""
+    class Meta:
+        model = Rubric
+        fields = ('title', 'content', 'order')
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g. Originality and significance',
+            }),
+            'content': CKEditorWidget(),
+            'order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+        }
+        help_texts = {
+            'order': 'Lower numbers appear first.',
+        }
+
+
+class ChecklistItemForm(forms.ModelForm):
+    """One submission-checklist item for a journal."""
+    class Meta:
+        model = ChecklistItem
+        fields = ('text', 'help_text', 'required', 'is_active', 'order')
+        widgets = {
+            'text': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g. The manuscript follows the journal formatting guidelines',
+            }),
+            'help_text': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Optional clarifying note',
+            }),
+            'required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+        }
+        help_texts = {
+            'required': 'Authors cannot submit without ticking a required item.',
+            'is_active': 'Uncheck to retire an item without deleting past responses.',
+            'order': 'Lower numbers appear first.',
+        }
+
+
+################### End Journal Content Forms #########################
+
+
+################### Volunteer Reviewer Application Forms #########################
+
+class ReviewerApplicationForm(forms.ModelForm):
+    """Public form for volunteering as a peer reviewer (no account required)."""
+
+    # Honeypot: a real person leaves this empty; bots tend to fill every field.
+    # It's visually hidden in the template and rejected server-side if filled.
+    website = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'tabindex': '-1', 'autocomplete': 'off', 'class': 'uj-hp',
+        }),
+        label='Leave this field blank',
+    )
+
+    class Meta:
+        model = ReviewerApplication
+        fields = [
+            'first_name', 'last_name', 'email', 'affiliation', 'position',
+            'qualifications', 'expertise_areas', 'journals_of_interest',
+            'cv', 'statement',
+        ]
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'you@institution.edu'}),
+            'affiliation': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'University of Jos'}),
+            'position': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Senior Lecturer'}),
+            'qualifications': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Degrees, key publications, review experience...'}),
+            'expertise_areas': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'e.g. Applied Linguistics, Phonology (comma-separated)'}),
+            'journals_of_interest': forms.CheckboxSelectMultiple(),
+            'cv': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf,.doc,.docx'}),
+            'statement': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Why would you like to review for us?'}),
+        }
+        help_texts = {
+            'expertise_areas': 'Separate areas with commas.',
+            'journals_of_interest': 'Optional — which journals you would like to review for.',
+            'cv': 'Optional — PDF or Word document.',
+        }
+
+    def clean_website(self):
+        if self.cleaned_data.get('website'):
+            raise forms.ValidationError('Spam detected.')
+        return ''
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].strip().lower()
+        # Block a second application while one is still pending.
+        if ReviewerApplication.objects.filter(email__iexact=email, status='pending').exists():
+            raise forms.ValidationError(
+                'You already have an application under review. We will be in touch soon.'
+            )
+        return email
+
+    def clean_cv(self):
+        cv = self.cleaned_data.get('cv')
+        if cv:
+            ext = cv.name.split('.')[-1].lower()
+            if ext not in ['pdf', 'doc', 'docx']:
+                raise forms.ValidationError('CV must be a PDF or Word document.')
+            if cv.size > 10 * 1024 * 1024:
+                raise forms.ValidationError('File size must be under 10MB.')
+        return cv
+
+
+class ReviewerApplicationDecisionForm(forms.Form):
+    """Editor's decision on an application."""
+    DECISION_CHOICES = (
+        ('approve_user', 'Approve — create a login account (reviewer signs in)'),
+        ('approve_guest', 'Approve — add as a guest reviewer (token access, no login)'),
+        ('reject', 'Decline this application'),
+    )
+    decision = forms.ChoiceField(
+        choices=DECISION_CHOICES,
+        widget=forms.RadioSelect(),
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3,
+                                     'placeholder': 'Optional note (included in the email to the applicant)...'}),
+    )
+
+
+################### End Volunteer Reviewer Application Forms #########################
+
+
+################### Publication Fee Form #########################
+
+class JournalFeeForm(forms.ModelForm):
+    """Set a journal's publication fee (0 or inactive = free)."""
+    class Meta:
+        model = JournalFee
+        fields = ('amount', 'currency', 'is_active')
+        widgets = {
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': '0.01'}),
+            'currency': forms.TextInput(attrs={'class': 'form-control', 'maxlength': 3}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        help_texts = {
+            'amount': 'Charged on acceptance, before publication.',
+            'currency': 'ISO code, e.g. NGN.',
+            'is_active': 'Uncheck to publish this journal free of charge.',
+        }
+
+
+################### End Publication Fee Form #########################

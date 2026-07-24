@@ -1,0 +1,57 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ journal.name }} — fee{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {% include 'submissions/_journal_manage_nav.html' with active='fee' %}
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Publication fee</div>
+                <div class="card-body">
+                    <p class="text-muted" style="font-size:14px;">
+                        Charged to the author after acceptance and before publication, via
+                        Paystack. Set the amount to <strong>0</strong> or turn the fee
+                        <strong>off</strong> to publish this journal free of charge.
+                    </p>
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                        <div class="row g-3">
+                            <div class="col-8">
+                                <label for="{{ form.amount.id_for_label }}" class="form-label">Amount</label>
+                                {{ form.amount }}
+                                {% if form.amount.errors %}<div class="text-danger small mt-1">{{ form.amount.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-4">
+                                <label for="{{ form.currency.id_for_label }}" class="form-label">Currency</label>
+                                {{ form.currency }}
+                            </div>
+                        </div>
+                        <div class="form-check mt-3 mb-4">
+                            {{ form.is_active }}
+                            <label for="{{ form.is_active.id_for_label }}" class="form-check-label">Fee is active</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">save</i> Save fee</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Current status</div>
+                <div class="card-body">
+                    {% if fee.is_active and fee.amount > 0 %}
+                    <div class="uj-stat mb-2"><div class="uj-stat__value">{{ fee.currency }} {{ fee.amount }}</div><div class="uj-stat__label">Payable before publication</div></div>
+                    <p class="text-muted mb-0" style="font-size:13px;">Accepted articles are held at <strong>Awaiting payment</strong> until the author pays or an editor waives the fee.</p>
+                    {% else %}
+                    <div class="uj-pill uj-pill--success">Free to publish</div>
+                    <p class="text-muted mt-2 mb-0" style="font-size:13px;">No fee is charged for this journal.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

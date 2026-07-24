@@ -125,6 +125,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'journalapp.context_processors.site_settings',
+                'journalapp.context_processors.journal_roles',
             ],
         },
     },
@@ -180,3 +181,14 @@ AUTHENTICATION_BACKENDS = [
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ---------------------------------------------------------------------------
+# Paystack (publication fees) — read from .env; blank disables payments.
+# Use test keys (sk_test_… / pk_test_…) in development.
+# ---------------------------------------------------------------------------
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
+PAYSTACK_PUBLIC_KEY = config('PAYSTACK_PUBLIC_KEY', default='')
+# Where Paystack sends the browser back after payment. Leave blank to use the
+# in-app callback route built from the current request host.
+PAYSTACK_CALLBACK_URL = config('PAYSTACK_CALLBACK_URL', default='')

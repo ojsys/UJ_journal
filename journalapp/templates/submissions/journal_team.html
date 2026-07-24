@@ -1,0 +1,119 @@
+{% extends 'journalapp/base.html' %}
+
+{% block title %}{{ journal.name }} — team{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {% include 'submissions/_journal_manage_nav.html' with active='team' %}
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Editorial roles</span>
+                    <span class="uj-pill uj-pill--brand">{{ roles|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if roles %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead><tr><th class="ps-4">Member</th><th>Role</th><th>Granted</th><th class="text-end pe-4"></th></tr></thead>
+                            <tbody>
+                                {% for role in roles %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-semibold" style="color:var(--uj-ink);">{{ role.user.get_full_name|default:role.user.email }}</div>
+                                        <small class="text-muted">{{ role.user.email }}</small>
+                                    </td>
+                                    <td>
+                                        {% if role.role == 'chief_editor' %}<span class="uj-pill uj-pill--brand">{{ role.get_role_display }}</span>
+                                        {% else %}<span class="uj-pill">{{ role.get_role_display }}</span>{% endif %}
+                                    </td>
+                                    <td style="font-size:13px; color:var(--uj-muted-2);">
+                                        {{ role.granted_at|date:"M d, Y" }}
+                                        {% if role.granted_by %}<div><small>by {{ role.granted_by.email }}</small></div>{% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <form method="post" action="{% url 'journal_role_revoke' journal.pk role.pk %}"
+                                              onsubmit="return confirm('Remove {{ role.user.email|escapejs }} as {{ role.get_role_display|escapejs }}?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Revoke">
+                                                <i class="material-icons" style="font-size:15px;">person_remove</i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <h6>No roles granted yet</h6>
+                        <p class="text-muted mb-0" style="font-size:14px;">Site staff still have full access to this journal.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if site_admins %}
+            <div class="card mt-3">
+                <div class="card-header">Site administrators</div>
+                <div class="card-body">
+                    <p class="text-muted" style="font-size:14px;">
+                        These accounts have unrestricted access to every journal and do not need a role here.
+                    </p>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for admin_user in site_admins %}
+                        <span class="uj-pill">{{ admin_user.get_full_name|default:admin_user.email }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Grant a role</div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}<div class="text-danger small mt-1">{{ form.email.errors }}</div>{% endif %}
+                            <small class="text-muted">{{ form.email.help_text }}</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.role.id_for_label }}" class="form-label">Role</label>
+                            {{ form.role }}
+                            {% if form.role.errors %}<div class="text-danger small mt-1">{{ form.role.errors }}</div>{% endif %}
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 justify-content-center">
+                            <i class="material-icons" style="font-size:17px;">person_add</i> Grant role
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">What each role can do</div>
+                <div class="card-body" style="font-size:14px;">
+                    <p class="mb-2"><span class="uj-pill uj-pill--brand">Chief Editor</span></p>
+                    <p class="text-muted">Leads the journal — manages its content (rubrics, submission checklist, and the team), runs the review workflow, and takes final decisions: approve, reject, publish.</p>
+
+                    <p class="mb-2 mt-3"><span class="uj-pill">Editor</span></p>
+                    <p class="text-muted mb-0">Assists with the review workflow — assign reviewers, request revisions — but cannot approve, publish, or manage journal content.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

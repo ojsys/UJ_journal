@@ -13,10 +13,11 @@
     <!-- Material Design Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <!-- Google Fonts: Space Grotesk (display/UI) + Manrope (body) -->
+    <!-- Google Fonts: Corben (headings) + Nunito Sans (body/UI fallback for
+         systems without Lucida Grande — see --uj-font-* in theme.css) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Corben:wght@400;700&family=Nunito+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -81,7 +82,7 @@
                             </li>
                             <li class="nav-item dropdown">
                                 <a class="uj-nav-link dropdown-toggle d-inline-flex align-items-center gap-2" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <span class="uj-brand-mark" style="width:28px;height:28px;font-size:12px;font-family:var(--uj-font-display);font-weight:700;">
+                                    <span class="uj-brand-mark" style="width:28px;height:28px;font-size:12px;font-family:var(--uj-font-heading);font-weight:700;">
                                         {{ user.get_full_name|default:user.email|first|upper }}
                                     </span>
                                     <span class="fw-semibold d-none d-lg-inline" style="color:var(--uj-ink);">{{ user.get_full_name|default:user.email }}</span>
@@ -90,6 +91,23 @@
                                     <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'profile' %}">
                                         <i class="material-icons" style="font-size:18px;">account_circle</i> Profile
                                     </a></li>
+                                    {% if can_manage_journals or can_manage_journal_content %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    {% if can_manage_journals %}
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'admin_submission_list' %}">
+                                        <i class="material-icons" style="font-size:18px;">fact_check</i> Manage submissions
+                                    </a></li>
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'reviewer_applications_list' %}">
+                                        <i class="material-icons" style="font-size:18px;">how_to_reg</i> Reviewer applications
+                                    </a></li>
+                                    {% endif %}
+                                    {% if can_manage_journal_content %}
+                                    <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'journal_manage_list' %}">
+                                        <i class="material-icons" style="font-size:18px;">tune</i> Manage journals
+                                    </a></li>
+                                    {% endif %}
+                                    {% endif %}
+
                                     {% if user.is_staff %}
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item d-flex align-items-center gap-2" href="{% url 'site_settings' %}">
@@ -197,6 +215,7 @@
                         <li><a href="{% url 'register' %}">Create an account</a></li>
                         <li><a href="{% url 'login' %}">Log in</a></li>
                         {% endif %}
+                        <li><a href="{% url 'reviewer_apply' %}">Volunteer as a peer reviewer</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-3 mb-2">
