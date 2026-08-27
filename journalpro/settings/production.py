@@ -66,12 +66,14 @@ MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 # silently ignored there — it must be declared under STORAGES instead.
 # The manifest backend hashes each filename (theme.<hash>.css), which is what
 # lets WhiteNoise cache assets forever and still push a redesign out instantly.
+# Our subclass is non-strict so a deploy that skips `collectstatic` serves a
+# stale/unhashed file rather than 500ing every page — see journalpro/storage.py.
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        'BACKEND': 'journalpro.storage.ForgivingManifestStaticFilesStorage',
     },
 }
 

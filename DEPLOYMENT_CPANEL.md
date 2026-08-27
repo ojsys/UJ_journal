@@ -273,9 +273,14 @@ source /home/cpuser/virtualenv/unijos_journal/3.12/bin/activate && cd /home/cpus
 git pull                      # or re-upload changed files
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py collectstatic --noinput
+python manage.py collectstatic --noinput   # ALWAYS run this before restarting
 mkdir -p tmp && touch tmp/restart.txt      # graceful Passenger restart
 ```
+
+> **Order matters.** Static filenames are content-hashed from `staticfiles.json`,
+> so `collectstatic` must run *after* pulling code and *before* the restart.
+> Skipping it serves the previous CSS (pages render, styling is stale) rather
+> than erroring — see `journalpro/storage.py`.
 
 ---
 
