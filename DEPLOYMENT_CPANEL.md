@@ -289,6 +289,7 @@ mkdir -p tmp && touch tmp/restart.txt      # graceful Passenger restart
 | `Can not find valid pkg-config name` / mysqlclient build fails | You're trying to build `mysqlclient`. Don't — use **PyMySQL** (already in requirements); remove any `mysqlclient` line. |
 | `django.db.utils.OperationalError` | Wrong `DB_*` values, or user not added to the DB with privileges (Step 1). |
 | CSS/JS missing (unstyled site) | Run `collectstatic`; confirm `whitenoise` installed and its middleware line is present in `production.py`. |
+| **Some** styling missing (e.g. journal cards/mastheads unstyled, rest of the site fine) | `collectstatic` wasn't re-run after a CSS change, so `staticfiles/` holds an older `theme.css`. Compare: `curl -sI https://<domain>/static/css/theme.css` (check `content-length`/`last-modified`) against `wc -c static/css/theme.css`. Re-run `collectstatic --noinput`, then restart. |
 | Uploaded images 404 (`/media/...`) | Deploy the current `journalpro/urls.py` (it serves `/media/` in production), then restart. Also confirm `media/` exists and the file is on disk. |
 | `DisallowedHost` | Add the exact domain(s) to `ALLOWED_HOSTS` in `.env`, then restart. |
 | Infinite HTTPS redirect | Set `SECURE_SSL_REDIRECT=False` until AutoSSL is issued, then flip back to `True`. |

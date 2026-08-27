@@ -61,7 +61,19 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # WhiteNoise for serving static files in production
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# NOTE: the old STATICFILES_STORAGE setting was REMOVED in Django 5.1 and is
+# silently ignored there — it must be declared under STORAGES instead.
+# The manifest backend hashes each filename (theme.<hash>.css), which is what
+# lets WhiteNoise cache assets forever and still push a redesign out instantly.
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 
 # Security settings
