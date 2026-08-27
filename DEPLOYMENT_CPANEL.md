@@ -293,6 +293,7 @@ mkdir -p tmp && touch tmp/restart.txt      # graceful Passenger restart
 | `DisallowedHost` | Add the exact domain(s) to `ALLOWED_HOSTS` in `.env`, then restart. |
 | Infinite HTTPS redirect | Set `SECURE_SSL_REDIRECT=False` until AutoSSL is issued, then flip back to `True`. |
 | CSRF "Origin checking failed" | Add `CSRF_TRUSTED_ORIGINS=https://journals.example.edu.ng` handling (add to `production.py` from env) if on Django's stricter CSRF. |
+| `OpenBLAS blas_thread_init: pthread_create failed` / `migrate` hangs at `import numpy` | Shared-host process limit vs. OpenBLAS spawning one thread per core. `manage.py` and `passenger_wsgi.py` now set `OPENBLAS_NUM_THREADS=1` (plus OMP/MKL/NUMEXPR) — deploy the current versions. For an ad-hoc shell command, prefix it: `OPENBLAS_NUM_THREADS=1 python manage.py migrate --settings=journalpro.settings.production`. |
 | Changes not showing | Restart the app / `touch tmp/restart.txt`. |
 
 ---

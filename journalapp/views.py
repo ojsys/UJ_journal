@@ -20,7 +20,6 @@ import docx
 import pdfplumber
 import io
 import logging
-import yake
 
 logger = logging.getLogger('journalapp')
 
@@ -81,6 +80,11 @@ def parse_document(request):
             abstract = "\n".join(abstract_lines)
         except IndexError:
             abstract = "" # No abstract found
+
+        # Imported lazily: yake pulls in numpy/OpenBLAS, which is slow to load and
+        # trips the process limits on shared hosting. Only pay that cost on the
+        # rare request that actually extracts keywords.
+        import yake
 
         kw_extractor = yake.KeywordExtractor(lan="en", n=1, dedupLim=0.9, top=10)
         keywords = kw_extractor.extract_keywords(content)
