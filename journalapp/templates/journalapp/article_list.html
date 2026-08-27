@@ -31,11 +31,11 @@
                     <form method="get" action="{% url 'article_list' %}" id="filter-form">
                         {% if request.GET.q %}<input type="hidden" name="q" value="{{ request.GET.q }}">{% endif %}
                         <div class="mb-4">
-                            <span class="uj-kicker d-block mb-2">Departments</span>
+                            <span class="uj-kicker d-block mb-2">Journals</span>
                             <div class="d-grid gap-1">
-                                <a href="{% url 'article_list' %}{% if request.GET.q %}?q={{ request.GET.q }}{% endif %}" class="btn btn-light btn-sm dept-btn {% if not request.GET.department %}active{% endif %}">All departments</a>
-                                {% for department in departments %}
-                                <a href="{% url 'article_list' %}?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}department={{ department.id }}" class="btn btn-light btn-sm dept-btn {% if request.GET.department == department.id|stringformat:'i' %}active{% endif %}">{{ department.name }}</a>
+                                <a href="{% url 'article_list' %}{% if request.GET.q %}?q={{ request.GET.q }}{% endif %}" class="btn btn-light btn-sm dept-btn {% if not request.GET.journal %}active{% endif %}">All journals</a>
+                                {% for journal in journals %}
+                                <a href="{% url 'article_list' %}?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}journal={{ journal.slug }}" class="btn btn-light btn-sm dept-btn {% if request.GET.journal == journal.slug %}active{% endif %}">{{ journal.abbreviation|default:journal.name }}</a>
                                 {% endfor %}
                             </div>
                         </div>
@@ -65,7 +65,7 @@
         <div class="col-lg-9">
             {% if request.GET %}
             <div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
-                <div><i class="material-icons align-middle me-1" style="font-size:18px;">info</i> Showing filtered results{% if request.GET.q %} for "<strong>{{ request.GET.q }}</strong>"{% endif %}{% if selected_department %} in <strong>{{ selected_department.name }}</strong>{% endif %}</div>
+                <div><i class="material-icons align-middle me-1" style="font-size:18px;">info</i> Showing filtered results{% if request.GET.q %} for "<strong>{{ request.GET.q }}</strong>"{% endif %}{% if selected_journal %} in <strong>{{ selected_journal.name }}</strong>{% endif %}</div>
                 <a href="{% url 'article_list' %}" class="btn btn-outline-primary btn-sm"><i class="material-icons" style="font-size:14px;">clear</i> Clear filters</a>
             </div>
             {% endif %}

@@ -22,8 +22,10 @@ class JournalRoleTestCase(TestCase):
 
     def setUp(self):
         self.dept = Department.objects.create(name='English', code='ENG')
-        self.journal_a = Journal.objects.create(department=self.dept, name='Journal A')
-        self.journal_b = Journal.objects.create(department=self.dept, name='Journal B')
+        self.journal_a = Journal.objects.create(
+            department=self.dept, name='Journal A', slug='journal-a', abbreviation='JA')
+        self.journal_b = Journal.objects.create(
+            department=self.dept, name='Journal B', slug='journal-b', abbreviation='JB')
 
         self.author = User.objects.create_user('author@test.ng', 'pw12345!')
         self.editor_a = User.objects.create_user('editor.a@test.ng', 'pw12345!')
@@ -66,9 +68,15 @@ class PermissionHelperTests(JournalRoleTestCase):
 
     def test_journals_for_returns_only_granted_journals(self):
         self.assertEqual(list(journals_for(self.editor_a)), [self.journal_a])
+        # Site staff see every journal, including the three the data migration
+        # seeds (JJEL, JOJWOL, Humanity) — not just the two built in setUp.
         self.assertEqual(
             set(journals_for(self.site_staff)),
+            set(Journal.objects.all()),
+        )
+        self.assertLessEqual(
             {self.journal_a, self.journal_b},
+            set(journals_for(self.site_staff)),
         )
 
     def test_role_filter_is_respected(self):
@@ -444,11 +452,28 @@ class JournalDetailPageTests(JournalRoleTestCase):
         ChecklistItem.objects.create(journal=self.journal_a, text='Live item', is_active=True)
         ChecklistItem.objects.create(journal=self.journal_a, text='Retired item', is_active=False)
 
-        response = self.client.get(reverse('journal_detail', args=[self.journal_a.pk]), HTTP_HOST='localhost')
+        response = self.client.get(
+            reverse('journal_home', args=[self.journal_a.slug]), HTTP_HOST='localhost')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Clarity')
         self.assertContains(response, 'Live item')
         self.assertNotContains(response, 'Retired item')  # inactive hidden from public
+
+    def test_old_numeric_journal_url_redirects_to_the_slug(self):
+        response = self.client.get(
+            reverse('journal_detail', args=[self.journal_a.pk]), HTTP_HOST='localhost')
+        self.assertRedirects(
+            response,
+            reverse('journal_home', args=[self.journal_a.slug]),
+            status_code=301,
+        )
+
+    def test_inactive_journal_is_hidden_from_the_public(self):
+        self.journal_a.is_active = False
+        self.journal_a.save(update_fields=['is_active'])
+        response = self.client.get(
+            reverse('journal_home', args=[self.journal_a.slug]), HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 404)
 
 
 # ---------------------------------------------------------------------------
@@ -981,3 +1006,289 @@ class PaymentUnconfiguredTests(JournalRoleTestCase):
         self.client.force_login(self.author)
         r = self.client.post(reverse('pay_submission', args=[self.sub_a.pk]), HTTP_HOST='localhost')
         self.assertEqual(r.status_code, 302)  # redirected back with an error message, no crash
+
+
+# ---------------------------------------------------------------------------
+# Multi-journal portal: issues, editorial board, and per-journal pages
+# ---------------------------------------------------------------------------
+
+import datetime
+
+from .models import Article, EditorialBoardMember, Issue, JournalPage
+
+
+class JournalIssueTests(JournalRoleTestCase):
+    """Editions belong to one journal and never leak into another's archive."""
+
+    def setUp(self):
+        super().setUp()
+        self.issue_a = Issue.objects.create(
+            journal=self.journal_a, volume='2', number='1', year=2026,
+            published_date=datetime.date(2026, 3, 1),
+        )
+        self.issue_b = Issue.objects.create(
+            journal=self.journal_b, volume='2', number='1', year=2026,
+            published_date=datetime.date(2026, 3, 1),
+        )
+
+    def test_label_reads_as_the_client_writes_it(self):
+        self.assertEqual(self.issue_a.label, 'Volume 2(1) 2026')
+
+    def test_volume_and_number_are_unique_per_journal_not_globally(self):
+        # Both journals may have a Volume 2(1) — that is the whole point of
+        # keying editions on the journal rather than the department.
+        self.assertEqual(Issue.objects.filter(volume='2', number='1').count(), 2)
+
+    def test_issues_are_listed_newest_first_despite_annotation(self):
+        # Same trap as the home page: annotate() groups the query and Django
+        # drops Meta.ordering, but the year grouping depends on sort order.
+        older = Issue.objects.create(
+            journal=self.journal_a, volume='1', number='1', year=2024,
+            published_date=datetime.date(2024, 1, 1),
+        )
+        newer = Issue.objects.create(
+            journal=self.journal_a, volume='3', number='1', year=2027,
+            published_date=datetime.date(2027, 1, 1),
+        )
+        response = self.client.get(
+            reverse('journal_issues', args=[self.journal_a.slug]), HTTP_HOST='localhost')
+        self.assertEqual(
+            [g['year'] for g in response.context['issue_years']], [2027, 2026, 2024])
+        flat = [i for g in response.context['issue_years'] for i in g['issues']]
+        self.assertEqual(flat, [newer, self.issue_a, older])
+
+    def test_issue_list_shows_only_this_journals_editions(self):
+        response = self.client.get(
+            reverse('journal_issues', args=[self.journal_a.slug]), HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context['issue_years'][0]['issues']), [self.issue_a])
+
+    def test_unpublished_issue_is_hidden_from_readers(self):
+        self.issue_a.is_published = False
+        self.issue_a.save(update_fields=['is_published'])
+
+        listing = self.client.get(
+            reverse('journal_issues', args=[self.journal_a.slug]), HTTP_HOST='localhost')
+        self.assertEqual(listing.context['issue_count'], 0)
+
+        detail = self.client.get(
+            reverse('issue_detail', args=[self.journal_a.slug, self.issue_a.pk]),
+            HTTP_HOST='localhost')
+        self.assertEqual(detail.status_code, 404)
+
+    def test_an_issue_cannot_be_read_through_another_journals_url(self):
+        response = self.client.get(
+            reverse('issue_detail', args=[self.journal_b.slug, self.issue_a.pk]),
+            HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 404)
+
+    def test_issue_detail_lists_only_published_articles(self):
+        published = Article.objects.create(
+            title='Published paper', abstract='a', content='c',
+            author=self.author, journal=self.journal_a, issue=self.issue_a,
+            status='published',
+        )
+        Article.objects.create(
+            title='Draft paper', abstract='a', content='c',
+            author=self.author, journal=self.journal_a, issue=self.issue_a,
+            status='draft',
+        )
+        response = self.client.get(
+            reverse('issue_detail', args=[self.journal_a.slug, self.issue_a.pk]),
+            HTTP_HOST='localhost')
+        self.assertEqual(list(response.context['articles']), [published])
+
+
+class JournalBoardAndPageTests(JournalRoleTestCase):
+    """The public editorial board and policy pages are per-journal."""
+
+    def test_board_is_grouped_by_section_and_hides_inactive_people(self):
+        EditorialBoardMember.objects.create(
+            journal=self.journal_a, name='Prof. Ada Eze', position='Editor-in-Chief',
+            section=EditorialBoardMember.SECTION_BOARD,
+        )
+        EditorialBoardMember.objects.create(
+            journal=self.journal_a, name='Dr. Bala Musa', position='Consultant',
+            section=EditorialBoardMember.SECTION_CONSULTANTS,
+        )
+        EditorialBoardMember.objects.create(
+            journal=self.journal_a, name='Retired Person', position='Former editor',
+            is_active=False,
+        )
+        EditorialBoardMember.objects.create(
+            journal=self.journal_b, name='Other Journal Editor', position='Editor',
+        )
+
+        response = self.client.get(
+            reverse('journal_board', args=[self.journal_a.slug]), HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [s['label'] for s in response.context['sections']],
+            ['Editorial Board', 'Editorial Consultants'],
+        )
+        self.assertContains(response, 'Prof. Ada Eze')
+        self.assertNotContains(response, 'Retired Person')
+        self.assertNotContains(response, 'Other Journal Editor')
+
+    def test_a_page_is_reachable_only_under_its_own_journal(self):
+        JournalPage.objects.create(
+            journal=self.journal_a, title='Review Policy', slug='review-policy',
+            content='<p>Double blind.</p>',
+        )
+        ours = self.client.get(
+            reverse('journal_page', args=[self.journal_a.slug, 'review-policy']),
+            HTTP_HOST='localhost')
+        self.assertContains(ours, 'Double blind.')
+
+        theirs = self.client.get(
+            reverse('journal_page', args=[self.journal_b.slug, 'review-policy']),
+            HTTP_HOST='localhost')
+        self.assertEqual(theirs.status_code, 404)
+
+    def test_unpublished_page_is_hidden_and_kept_out_of_the_nav(self):
+        JournalPage.objects.create(
+            journal=self.journal_a, title='Draft Policy', slug='draft-policy',
+            content='<p>Not ready.</p>', is_published=False,
+        )
+        response = self.client.get(
+            reverse('journal_page', args=[self.journal_a.slug, 'draft-policy']),
+            HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn('draft-policy', [p.slug for p in self.journal_a.nav_pages])
+
+
+class JournalManagementAccessTests(JournalRoleTestCase):
+    """The new management screens honour the same per-journal boundary."""
+
+    MANAGE_VIEWS = (
+        'journal_settings', 'journal_issues_manage',
+        'journal_board_manage', 'journal_pages_manage',
+    )
+
+    def test_chief_editor_reaches_only_their_own_journal(self):
+        self.client.force_login(self.editor_a)
+        for name in self.MANAGE_VIEWS:
+            with self.subTest(view=name):
+                mine = self.client.get(
+                    reverse(name, args=[self.journal_a.pk]), HTTP_HOST='localhost')
+                self.assertEqual(mine.status_code, 200)
+
+                theirs = self.client.get(
+                    reverse(name, args=[self.journal_b.pk]), HTTP_HOST='localhost')
+                self.assertEqual(theirs.status_code, 403)
+
+    def test_author_cannot_reach_any_management_screen(self):
+        self.client.force_login(self.author)
+        for name in self.MANAGE_VIEWS:
+            with self.subTest(view=name):
+                response = self.client.get(
+                    reverse(name, args=[self.journal_a.pk]), HTTP_HOST='localhost')
+                self.assertEqual(response.status_code, 403)
+
+    def test_editor_can_add_an_issue_to_their_journal(self):
+        self.client.force_login(self.editor_a)
+        response = self.client.post(
+            reverse('journal_issues_manage', args=[self.journal_a.pk]),
+            {
+                'volume': '3', 'number': '2', 'year': '2026',
+                'title': '', 'description': '',
+                'published_date': '2026-06-01', 'is_published': 'on',
+            },
+            HTTP_HOST='localhost',
+        )
+        self.assertEqual(response.status_code, 302)
+        issue = Issue.objects.get(journal=self.journal_a, volume='3', number='2')
+        self.assertEqual(issue.uploaded_by, self.editor_a)
+
+    def test_duplicate_volume_is_reported_not_crashed(self):
+        Issue.objects.create(
+            journal=self.journal_a, volume='3', number='2', year=2026,
+            published_date=datetime.date(2026, 6, 1),
+        )
+        self.client.force_login(self.editor_a)
+        response = self.client.post(
+            reverse('journal_issues_manage', args=[self.journal_a.pk]),
+            {
+                'volume': '3', 'number': '2', 'year': '2026',
+                'title': '', 'description': '',
+                'published_date': '2026-06-01', 'is_published': 'on',
+            },
+            HTTP_HOST='localhost',
+        )
+        # Re-renders the form with an error rather than raising IntegrityError.
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already has an issue')
+        self.assertEqual(Issue.objects.filter(journal=self.journal_a).count(), 1)
+
+    def test_an_issue_holding_articles_is_not_deleted(self):
+        issue = Issue.objects.create(
+            journal=self.journal_a, volume='4', number='1', year=2026,
+            published_date=datetime.date(2026, 9, 1),
+        )
+        Article.objects.create(
+            title='Keeper', abstract='a', content='c', author=self.author,
+            journal=self.journal_a, issue=issue, status='published',
+        )
+        self.client.force_login(self.editor_a)
+        self.client.post(
+            reverse('issue_delete', args=[self.journal_a.pk, issue.pk]),
+            HTTP_HOST='localhost')
+        self.assertTrue(Issue.objects.filter(pk=issue.pk).exists())
+
+
+class JournalSeedDataTests(TestCase):
+    """The three journals the client actually runs exist after migration."""
+
+    def test_the_three_journals_are_seeded_with_slugs(self):
+        expected = {
+            'jjel': 'Jos Journal of the English Language',
+            'jojwol': 'Jos Journal of Written and Oral Literature',
+            'humanity': 'Humanity Journal',
+        }
+        for slug, name in expected.items():
+            with self.subTest(slug=slug):
+                journal = Journal.objects.get(slug=slug)
+                self.assertEqual(journal.name, name)
+                self.assertTrue(journal.is_active)
+
+    def test_home_page_leads_with_the_journals_in_order(self):
+        # Regression: the home queryset annotates counts, and Django drops
+        # Meta.ordering from a grouped query — so without an explicit order_by
+        # the cards came back in arbitrary database order. Shuffling the `order`
+        # values proves the view is really sorting rather than getting lucky.
+        Journal.objects.filter(slug='humanity').update(order=1)
+        Journal.objects.filter(slug='jjel').update(order=3)
+
+        response = self.client.get(reverse('home'), HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [j.slug for j in response.context['journals']],
+            ['humanity', 'jojwol', 'jjel'],
+        )
+
+    def test_journal_list_page_honours_the_same_order(self):
+        response = self.client.get(reverse('journal_list'), HTTP_HOST='localhost')
+        self.assertEqual(
+            [j.slug for j in response.context['journals']],
+            ['jjel', 'jojwol', 'humanity'],
+        )
+
+
+class EditorialBoardInitialsTests(TestCase):
+    """Avatar initials skip the honorific, or a whole board reads 'P, P, D, D'."""
+
+    def _initials(self, name):
+        return EditorialBoardMember(name=name).initials
+
+    def test_honorific_is_ignored(self):
+        self.assertEqual(self._initials('Prof. Ada N. Eze'), 'AE')
+        self.assertEqual(self._initials('Dr. Bala Musa'), 'BM')
+        self.assertEqual(self._initials('Mrs Ngozi Okafor'), 'NO')
+
+    def test_plain_names_still_work(self):
+        self.assertEqual(self._initials('Ada Eze'), 'AE')
+        self.assertEqual(self._initials('Ada'), 'A')
+
+    def test_degenerate_names_do_not_crash(self):
+        self.assertEqual(self._initials('Prof.'), 'P')
+        self.assertEqual(self._initials('   '), '?')

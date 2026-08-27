@@ -1,0 +1,20 @@
+{% comment %}
+One bound form field with label, help text and errors. Keeps the journal
+management forms from repeating the same six lines per field. Checkboxes get
+Bootstrap's inline layout instead of a stacked label.
+{% endcomment %}
+{% if field.field.widget.input_type == 'checkbox' %}
+<div class="form-check mb-3">
+    {{ field }}
+    <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {% if field.help_text %}<small class="text-muted d-block">{{ field.help_text }}</small>{% endif %}
+    {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+</div>
+{% else %}
+<div class="mb-3">
+    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+    {{ field }}
+    {% if field.help_text %}<small class="text-muted d-block mt-1">{{ field.help_text }}</small>{% endif %}
+    {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+</div>
+{% endif %}

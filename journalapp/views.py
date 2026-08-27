@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 from django.utils.html import strip_tags
 from django.contrib.sites.shortcuts import get_current_site
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.urls import reverse_lazy
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
@@ -26,7 +26,7 @@ logger = logging.getLogger('journalapp')
 
 from .models import (
     Article, Department, Profile, ArticleCategory, Review, SiteSettings,
-    HeroSlide, ArchivedJournal, Journal, ArticleLog, Rubric, Submission,
+    HeroSlide, Journal, Issue, ArticleLog, Rubric, Submission,
     Assignment, SubmissionMessage
 )
 from .permissions import (
@@ -36,7 +36,7 @@ from .utils import get_from_email
 from .forms import (
     UserRegisterForm, ProfileUpdateForm, UserUpdateForm, ArticleForm,
     ReviewForm, CommentForm, DepartmentForm, SiteSettingsForm,
-    HeroSlideForm, AssignReviewerForm, ArchivedJournalForm
+    HeroSlideForm, AssignReviewerForm
 )
 from .filters import ArticleFilter
 
@@ -98,16 +98,35 @@ def parse_document(request):
 
 
 def home(request):
-    departments = Department.objects.all()
-    latest_articles = Article.objects.filter(status='published').order_by('-published_at')[:5]
+    """Landing page. Leads with the journals themselves.
+
+    This used to list Departments, which hid the fact that one department can
+    run several journals — a visitor could not tell JJEL from JOJWOL. Journals
+    are now the first thing on the page, each linking to its own site.
+    """
+    # order_by is explicit because Django drops Meta.ordering from a query that
+    # groups (which annotate() makes it do), so the cards would come back in
+    # whatever order the database happened to return.
+    journals = Journal.objects.filter(is_active=True).annotate(
+        article_count=Count('articles', filter=Q(articles__status='published'), distinct=True),
+        issue_count=Count('issues', filter=Q(issues__is_published=True), distinct=True),
+    ).order_by('order', 'name')
+    latest_articles = (
+        Article.objects.filter(status='published')
+        .select_related('journal', 'issue')
+        .order_by('-published_at')[:6]
+    )
     hero_slides = HeroSlide.objects.filter(is_active=True).order_by('order')
-    featured_archives = ArchivedJournal.objects.filter(featured=True).order_by('-publication_date')[:3]
-    
+    featured_issues = (
+        Issue.objects.filter(featured=True, is_published=True, journal__is_active=True)
+        .select_related('journal')[:3]
+    )
+
     context = {
-        'departments': departments,
+        'journals': journals,
         'latest_articles': latest_articles,
         'hero_slides': hero_slides,
-        'featured_archives': featured_archives,
+        'featured_issues': featured_issues,
     }
     return render(request, 'journalapp/home.html', context)
 
@@ -556,36 +575,6 @@ def send_revision_notification(request, article):
         logger.error("Error sending revision notification email to %s: %s", to_email, e, exc_info=True)
 
 
-def journal_detail(request, pk):
-    """Public page for a single journal: about, rubrics, checklist, articles."""
-    journal = get_object_or_404(Journal.objects.select_related('department'), pk=pk)
-    published_articles = Article.objects.filter(
-        journal=journal, status='published'
-    ).select_related('author', 'category').order_by('-published_at')
-
-    context = {
-        'journal': journal,
-        'articles': published_articles,
-        'rubrics': journal.rubrics.all(),
-        'checklist_items': journal.checklist_items.filter(is_active=True),
-    }
-    return render(request, 'journalapp/journal_detail.html', context)
-
-
-def department_journal(request, department_id):
-    department = get_object_or_404(Department, id=department_id)
-    published_articles = Article.objects.filter(
-        journal__department=department,
-        status='published'
-    ).order_by('-published_at')
-    
-    context = {
-        'department': department,
-        'articles': published_articles,
-    }
-    return render(request, 'journalapp/department_journal.html', context)
-
-
 class ArticleListView(FilterView):
     model = Article
     template_name = 'journalapp/article_list.html'
@@ -613,9 +602,11 @@ class ArticleListView(FilterView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['departments'] = Department.objects.all()
-        dept_id = self.request.GET.get('department')
-        context['selected_department'] = Department.objects.filter(id=dept_id).first() if dept_id else None
+        context['journals'] = Journal.objects.filter(is_active=True)
+        slug = self.request.GET.get('journal')
+        context['selected_journal'] = (
+            Journal.objects.filter(slug=slug).first() if slug else None
+        )
         return context
 
 class ArticleDetailView(DetailView):
@@ -865,22 +856,6 @@ def hero_slide_delete(request, pk):
 #         return context
 
 
-class JournalListView(ListView):
-    model = Journal
-    template_name = 'journalapp/journal_list.html'
-    context_object_name = 'journals'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # For each journal, get the count of published articles
-        for journal in context['journals']:
-            journal.article_count = Article.objects.filter(
-                journal=journal,
-                status='published'
-            ).count()
-        return context
-
-
 ############# PDF Export ###############
 def article_pdf(request, pk):
     from io import BytesIO
@@ -927,10 +902,11 @@ class ArticleSearchView(ListView):
                 Q(keywords__icontains=search_query)
             )
 
-        # Filter by department
-        department_id = self.request.GET.get('department')
-        if department_id:
-            queryset = queryset.filter(journal__department_id=department_id)
+        # Filter by journal. Was department, which could not separate two
+        # journals of the same department.
+        journal_slug = self.request.GET.get('journal')
+        if journal_slug:
+            queryset = queryset.filter(journal__slug=journal_slug)
 
         # Filter by category
         category_id = self.request.GET.get('category')
@@ -954,132 +930,11 @@ class ArticleSearchView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['departments'] = Department.objects.all()
+        context['journals'] = Journal.objects.filter(is_active=True)
         context['categories'] = ArticleCategory.objects.all()
         context['search_query'] = self.request.GET.get('q', '')
-        context['selected_department'] = self.request.GET.get('department', '')
+        context['selected_journal'] = self.request.GET.get('journal', '')
         context['selected_category'] = self.request.GET.get('category', '')
         context['selected_sort'] = self.request.GET.get('sort', 'newest')
         return context
 
-# Add these views for archived journals
-
-@staff_member_required
-def archived_journals_list(request):
-    archives = ArchivedJournal.objects.all().order_by('-publication_date')
-
-    # Filter by department
-    department_id = request.GET.get('department')
-    if department_id:
-        archives = archives.filter(department_id=department_id)
-
-    # Search functionality
-    search_query = request.GET.get('q')
-    if search_query:
-        archives = archives.filter(
-            Q(title__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(volume__icontains=search_query) |
-            Q(issue__icontains=search_query)
-        )
-
-    context = {
-        'archives': archives,
-        'departments': Department.objects.all(),
-        'title': 'Archived Journals',
-        'search_query': search_query,
-        'selected_department': department_id,
-    }
-    return render(request, 'journalapp/archived_journals_list.html', context)
-
-@staff_member_required
-def archived_journal_create(request):
-    if request.method == 'POST':
-        form = ArchivedJournalForm(request.POST, request.FILES)
-        if form.is_valid():
-            archived_journal = form.save(commit=False)
-            archived_journal.uploaded_by = request.user
-            archived_journal.save()
-            messages.success(request, 'Archived journal uploaded successfully!')
-            return redirect('archived_journals_list')
-    else:
-        form = ArchivedJournalForm()
-
-    context = {
-        'form': form,
-        'title': 'Upload Archived Journal'
-    }
-    return render(request, 'journalapp/archived_journal_form.html', context)
-
-@staff_member_required
-def archived_journal_update(request, pk):
-    archived_journal = get_object_or_404(ArchivedJournal, pk=pk)
-
-    if request.method == 'POST':
-        form = ArchivedJournalForm(request.POST, request.FILES, instance=archived_journal)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Archived journal updated successfully!')
-            return redirect('archived_journals_list')
-    else:
-        form = ArchivedJournalForm(instance=archived_journal)
-
-    context = {
-        'form': form,
-        'archived_journal': archived_journal,
-        'title': 'Update Archived Journal'
-    }
-    return render(request, 'journalapp/archived_journal_form.html', context)
-
-@staff_member_required
-def archived_journal_delete(request, pk):
-    archived_journal = get_object_or_404(ArchivedJournal, pk=pk)
-
-    if request.method == 'POST':
-        archived_journal.delete()
-        messages.success(request, 'Archived journal deleted successfully!')
-        return redirect('archived_journals_list')
-
-    context = {
-        'archived_journal': archived_journal,
-        'title': 'Delete Archived Journal'
-    }
-    return render(request, 'journalapp/archived_journal_confirm_delete.html', context)
-
-# Public view for archived journals
-def public_archived_journals(request):
-    archives = ArchivedJournal.objects.all().order_by('-publication_date')
-
-    # Filter by department
-    department_id = request.GET.get('department')
-    if department_id:
-        archives = archives.filter(department_id=department_id)
-        selected_department = Department.objects.get(id=department_id)
-    else:
-        selected_department = None
-
-    # Search functionality
-    search_query = request.GET.get('q')
-    if search_query:
-        archives = archives.filter(
-            Q(title__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(volume__icontains=search_query) |
-            Q(issue__icontains=search_query)
-        )
-
-    context = {
-        'archives': archives,
-        'departments': Department.objects.all(),
-        'search_query': search_query,
-        'selected_department': selected_department,
-    }
-    return render(request, 'journalapp/public_archived_journals.html', context)
-
-def archived_journal_detail(request, pk):
-    archived_journal = get_object_or_404(ArchivedJournal, pk=pk)
-
-    context = {
-        'archived_journal': archived_journal,
-    }
-    return render(request, 'journalapp/archived_journal_detail.html', context)

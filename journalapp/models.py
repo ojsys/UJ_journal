@@ -73,13 +73,237 @@ class Department(models.Model):
 
 
 class Journal(models.Model):
-    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='journals')
+    """
+    One of the university's journals — the top-level public entity.
+
+    The portal used to be organised around :class:`Department`, but a department
+    can run more than one journal (the Department of English runs both JJEL and
+    JOJWOL), so a visitor browsing by department could never tell the two apart.
+    Journals are now what the landing page lists and what everything else hangs
+    off; ``department`` is kept only as an optional internal grouping tag.
+
+    Each journal owns its own about text, editorial board, issues, policy pages,
+    rubrics, checklist and fee — enough to render a self-contained journal site
+    under ``/journals/<slug>/``.
+    """
     name = models.CharField(max_length=200)
+    slug = models.SlugField(
+        max_length=80, unique=True,
+        help_text="Used in the journal's web address, e.g. 'jjel'."
+    )
+    abbreviation = models.CharField(
+        max_length=20, blank=True,
+        help_text="Short form, e.g. 'JJEL'. Shown on the journal card when no logo is set."
+    )
+    tagline = models.CharField(
+        max_length=255, blank=True,
+        help_text="One line shown under the journal name."
+    )
     description = RichTextField(blank=True)
+    about = RichTextField(
+        blank=True,
+        help_text="Aims and scope — the main text on the journal's home page."
+    )
+
+    logo = models.ImageField(
+        upload_to='journal_logos', blank=True, null=True,
+        help_text="Square-ish logo used on the journal cards."
+    )
     cover_image = models.ImageField(upload_to='journal_covers', blank=True, null=True)
 
+    issn_print = models.CharField(max_length=20, blank=True, verbose_name="ISSN (Print)")
+    issn_online = models.CharField(max_length=20, blank=True, verbose_name="ISSN (Online)")
+    published_by = models.CharField(
+        max_length=255, blank=True,
+        help_text="e.g. 'Department of English, University of Jos'."
+    )
+    contact_email = models.EmailField(blank=True)
+
+    department = models.ForeignKey(
+        Department, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='journals',
+        help_text="Optional internal grouping. Not shown to visitors."
+    )
+    order = models.PositiveIntegerField(
+        default=0, help_text="Controls the order journals appear in on the home page."
+    )
+    is_active = models.BooleanField(
+        default=True, help_text="Untick to hide this journal from the public site."
+    )
+
+    class Meta:
+        ordering = ['order', 'name']
+
     def __str__(self):
-        return f"{self.name} ({self.department.name})"
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('journal_home', kwargs={'slug': self.slug})
+
+    @property
+    def short_name(self):
+        """The abbreviation when set, otherwise the full name."""
+        return self.abbreviation or self.name
+
+    @property
+    def nav_pages(self):
+        """Policy/guide pages that belong in this journal's sub-navigation."""
+        return self.pages.filter(is_published=True, show_in_nav=True)
+
+
+class Issue(models.Model):
+    """
+    One published edition of a journal — "Volume 2(1) 2026".
+
+    An issue carries both ways of reading it, because the client has legacy
+    editions that only exist as a single scanned PDF *and* new editions that are
+    assembled article by article in the portal:
+
+    * ``document`` — the whole issue as one file, to view or download.
+    * ``articles`` — the table of contents, each article with its own page.
+
+    Either may be empty. This replaces the old ``ArchivedJournal``, which was
+    keyed on department and so could not tell two journals of the same
+    department apart.
+    """
+    journal = models.ForeignKey(Journal, on_delete=models.CASCADE, related_name='issues')
+    volume = models.CharField(max_length=20, help_text="e.g. '2'")
+    number = models.CharField(max_length=20, blank=True, help_text="Issue number, e.g. '1'")
+    year = models.PositiveIntegerField()
+    title = models.CharField(
+        max_length=255, blank=True,
+        help_text="Optional name, for a special or themed issue."
+    )
+    description = models.TextField(blank=True)
+    cover_image = models.ImageField(upload_to='issue_covers/', blank=True, null=True)
+    document = models.FileField(
+        upload_to='issues/', blank=True, null=True,
+        help_text="The complete issue as a single PDF, for viewing and download."
+    )
+    published_date = models.DateField()
+    is_published = models.BooleanField(
+        default=True, help_text="Untick to keep this issue hidden while you prepare it."
+    )
+    featured = models.BooleanField(default=False, help_text="Feature this issue on the home page.")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='issues_uploaded'
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-year', '-volume', '-number']
+        unique_together = ('journal', 'volume', 'number')
+
+    def __str__(self):
+        return f"{self.journal.short_name} — {self.label}"
+
+    @property
+    def label(self):
+        """Human-readable edition label, e.g. 'Volume 2(1) 2026'."""
+        vol = f"Volume {self.volume}" if self.volume else "Volume"
+        if self.number:
+            vol = f"{vol}({self.number})"
+        return f"{vol} {self.year}"
+
+    def get_absolute_url(self):
+        return reverse('issue_detail', kwargs={'slug': self.journal.slug, 'pk': self.pk})
+
+
+class EditorialBoardMember(models.Model):
+    """
+    A person listed on a journal's public editorial board.
+
+    Deliberately *not* tied to a portal account: most editorial consultants are
+    academics at other institutions who will never log in here. ``user`` is an
+    optional link for the ones who do. Permissions remain entirely the business
+    of :class:`JournalRole` — listing someone here grants them nothing.
+    """
+    SECTION_BOARD = 'board'
+    SECTION_CONSULTANTS = 'consultants'
+    SECTION_ADVISORY = 'advisory'
+
+    SECTION_CHOICES = (
+        (SECTION_BOARD, 'Editorial Board'),
+        (SECTION_CONSULTANTS, 'Editorial Consultants'),
+        (SECTION_ADVISORY, 'Advisory Board'),
+    )
+
+    journal = models.ForeignKey(Journal, on_delete=models.CASCADE, related_name='board_members')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='board_memberships',
+        help_text="Optional: link to this person's portal account."
+    )
+    name = models.CharField(max_length=150)
+    position = models.CharField(
+        max_length=120, help_text="e.g. 'Editor-in-Chief', 'Managing Editor'."
+    )
+    section = models.CharField(max_length=20, choices=SECTION_CHOICES, default=SECTION_BOARD)
+    affiliation = models.CharField(max_length=255, blank=True)
+    email = models.EmailField(blank=True)
+    photo = models.ImageField(upload_to='board_photos/', blank=True, null=True)
+    bio = RichTextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['section', 'order', 'name']
+
+    #: Titles to skip when deriving initials. Nearly every academic board member
+    #: is listed with one, and taking ``name[0]`` blindly turned a whole board
+    #: into a row of identical "P"s and "D"s.
+    HONORIFICS = frozenset({
+        'prof', 'professor', 'dr', 'doctor', 'mr', 'mrs', 'ms', 'miss',
+        'rev', 'sir', 'engr', 'barr', 'chief', 'assoc', 'associate', 'emeritus',
+    })
+
+    def __str__(self):
+        return f"{self.name} — {self.position} ({self.journal.short_name})"
+
+    @property
+    def initials(self):
+        """Up to two initials for the no-photo avatar, ignoring any honorific."""
+        words = [w for w in self.name.replace('.', ' ').split() if w]
+        meaningful = [w for w in words if w.lower() not in self.HONORIFICS]
+        # An entry that is nothing but a title still deserves a letter.
+        source = meaningful or words
+        if not source:
+            return '?'
+        if len(source) == 1:
+            return source[0][0].upper()
+        return (source[0][0] + source[-1][0]).upper()
+
+
+class JournalPage(models.Model):
+    """
+    A free-form rich-text page belonging to one journal.
+
+    This is how each journal publishes its own submission guide, review policy,
+    plagiarism policy, open access policy and so on. A model rather than fixed
+    fields, because the set of policies differs between journals and grows over
+    time without warning — a Chief Editor can add one without a code change.
+    """
+    journal = models.ForeignKey(Journal, on_delete=models.CASCADE, related_name='pages')
+    title = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=80, help_text="Used in the page's web address.")
+    content = RichTextField()
+    order = models.PositiveIntegerField(default=0)
+    show_in_nav = models.BooleanField(
+        default=True, help_text="Show this page in the journal's navigation bar."
+    )
+    is_published = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'title']
+        unique_together = ('journal', 'slug')
+
+    def __str__(self):
+        return f"{self.title} ({self.journal.short_name})"
+
+    def get_absolute_url(self):
+        return reverse('journal_page', kwargs={'slug': self.journal.slug, 'page_slug': self.slug})
 
 
 class JournalRole(models.Model):
@@ -333,9 +557,12 @@ class Article(models.Model):
         help_text="Structured sections extracted from the document"
     )
 
-    # Publication metadata
-    volume = models.CharField(max_length=50, blank=True)
-    issue = models.CharField(max_length=50, blank=True)
+    # Publication metadata. Volume/issue used to be free text on each article,
+    # which made it impossible to render an edition's table of contents; the
+    # edition is now a real Issue record the article points at.
+    issue = models.ForeignKey(
+        Issue, on_delete=models.SET_NULL, null=True, blank=True, related_name='articles'
+    )
     page_start = models.CharField(max_length=20, blank=True)
     page_end = models.CharField(max_length=20, blank=True)
     doi = models.CharField(max_length=100, blank=True, help_text="Digital Object Identifier")
@@ -364,6 +591,11 @@ class Article(models.Model):
         if self.keywords:
             return [k.strip() for k in self.keywords.split(',')]
         return []
+
+    @property
+    def citation_label(self):
+        """Edition label for citations, e.g. 'Volume 2(1) 2026'. Blank if unassigned."""
+        return self.issue.label if self.issue_id else ""
 
 class Review(models.Model):
     DECISION_CHOICES = (
@@ -406,26 +638,6 @@ class ArticleLog(models.Model):
     def __str__(self):
         return f"{self.article.title} - {self.action} at {self.timestamp}"
 
-
-
-class ArchivedJournal(models.Model):
-    title = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='archived_journals')
-    volume = models.CharField(max_length=50, blank=True, null=True)
-    issue = models.CharField(max_length=50, blank=True, null=True)
-    publication_date = models.DateField()
-    document = models.FileField(upload_to='archived_journals/')
-    cover_image = models.ImageField(upload_to='archived_journal_covers/', blank=True, null=True)
-    uploaded_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-    featured = models.BooleanField(default=False, help_text="Feature this archive on the home page")
-
-    class Meta:
-        ordering = ['-publication_date']
-
-    def __str__(self):
-        return f"{self.title} - Vol. {self.volume}, Issue {self.issue}"
 
 
 ################### Submission Workflow Models #########################

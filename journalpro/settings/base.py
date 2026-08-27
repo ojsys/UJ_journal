@@ -126,6 +126,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'journalapp.context_processors.site_settings',
                 'journalapp.context_processors.journal_roles',
+                'journalapp.context_processors.nav_journals',
             ],
         },
     },

@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from ckeditor.widgets import CKEditorWidget
 from .models import (
     Profile, Article, Review, Comment, Department, SiteSettings,
-    HeroSlide, ArticleCategory, ArchivedJournal, Journal,
+    HeroSlide, ArticleCategory, Journal, Issue, EditorialBoardMember, JournalPage,
     Submission, Assignment, SubmissionMessage, DocumentVersion,
     GuestReviewer, JournalRole, Rubric, ChecklistItem, ReviewerApplication,
     JournalFee
@@ -177,11 +177,15 @@ class DepartmentForm(forms.ModelForm):
         }
 
 class JournalForm(forms.ModelForm):
+    """Full journal record, for site administrators."""
     class Meta:
         model = Journal
-        fields = ['name', 'department', 'description', 'cover_image']
+        fields = ['name', 'slug', 'abbreviation', 'tagline', 'description', 'about',
+                  'logo', 'cover_image', 'issn_print', 'issn_online', 'published_by',
+                  'contact_email', 'department', 'order', 'is_active']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
+            'about': CKEditorWidget(),
         }
 
 class AssignReviewerForm(forms.Form):
@@ -191,15 +195,6 @@ class AssignReviewerForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-control'})
     )
 
-class ArchivedJournalForm(forms.ModelForm):
-    class Meta:
-        model = ArchivedJournal
-        fields = ['title', 'description', 'department', 'volume', 'issue',
-                  'publication_date', 'document', 'cover_image']
-        widgets = {
-            'publication_date': forms.DateInput(attrs={'type': 'date'}),
-            'description': forms.Textarea(attrs={'rows': 4}),
-        }
 
 
 ################### Submission Workflow Forms #########################
@@ -449,7 +444,7 @@ class PublishArticleForm(forms.ModelForm):
     class Meta:
         model = Article
         fields = ['title', 'abstract', 'keywords', 'content', 'category',
-                  'volume', 'issue', 'page_start', 'page_end', 'doi',
+                  'issue', 'page_start', 'page_end', 'doi',
                   'extracted_citations']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
@@ -459,14 +454,7 @@ class PublishArticleForm(forms.ModelForm):
                 'placeholder': 'e.g., science, research, education'
             }),
             'content': CKEditorWidget(),
-            'volume': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'e.g., 12'
-            }),
-            'issue': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'e.g., 3'
-            }),
+            'issue': forms.Select(attrs={'class': 'form-select'}),
             'page_start': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'e.g., 45'
@@ -485,7 +473,25 @@ class PublishArticleForm(forms.ModelForm):
             'extracted_citations': 'References/Citations',
             'page_start': 'Start Page',
             'page_end': 'End Page',
+            'issue': 'Publish in issue',
         }
+        help_texts = {
+            'issue': 'Only issues belonging to this journal are listed. '
+                     'Create one first under Manage journal \u2192 Issues.',
+        }
+
+    def __init__(self, *args, journal=None, **kwargs):
+        # The issue list must never offer another journal's editions, so scope it
+        # to the journal being published into. The article doesn't exist yet at
+        # this point, so the journal is passed in by the view; an unscoped form
+        # offers nothing rather than every issue on the site.
+        super().__init__(*args, **kwargs)
+        journal = journal or getattr(self.instance, 'journal', None)
+        self.fields['issue'].queryset = (
+            Issue.objects.filter(journal=journal) if journal else Issue.objects.none()
+        )
+        self.fields['issue'].required = False
+        self.fields['issue'].empty_label = '— not assigned to an issue —'
 
 
 class RevisionRequestForm(forms.Form):
@@ -869,6 +875,171 @@ class ChecklistItemForm(forms.ModelForm):
             'is_active': 'Uncheck to retire an item without deleting past responses.',
             'order': 'Lower numbers appear first.',
         }
+
+
+class JournalSettingsForm(forms.ModelForm):
+    """
+    A journal's own public profile, editable by its Chief Editor.
+
+    Deliberately narrower than :class:`JournalForm`: ``slug``, ``department``,
+    ``order`` and ``is_active`` decide where the journal sits in the site and
+    stay with site administrators.
+    """
+    class Meta:
+        model = Journal
+        fields = ('name', 'abbreviation', 'tagline', 'about', 'logo', 'cover_image',
+                  'issn_print', 'issn_online', 'published_by', 'contact_email')
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'abbreviation': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'e.g. JJEL',
+            }),
+            'tagline': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g. A peer-reviewed journal of English language studies',
+            }),
+            'about': CKEditorWidget(),
+            'issn_print': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0000-0000'}),
+            'issn_online': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '0000-0000'}),
+            'published_by': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g. Department of English, University of Jos',
+            }),
+            'contact_email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+        help_texts = {
+            'about': 'Aims and scope — the main text on the journal home page.',
+            'logo': 'Shown on the journal card on the home page.',
+            'cover_image': 'Wide banner image for the journal home page.',
+        }
+
+
+class IssueForm(forms.ModelForm):
+    """One published edition of a journal."""
+    class Meta:
+        model = Issue
+        fields = ('volume', 'number', 'year', 'title', 'description',
+                  'published_date', 'document', 'cover_image',
+                  'is_published', 'featured')
+        widgets = {
+            'volume': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 2'}),
+            'number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 1'}),
+            'year': forms.NumberInput(attrs={'class': 'form-control', 'min': 1900, 'max': 2200}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'Optional: special issue title',
+            }),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'published_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'document': forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'}),
+            'cover_image': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'featured': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        help_texts = {
+            'document': 'Optional: the complete issue as one PDF, for readers to view or download.',
+            'is_published': 'Uncheck to keep the issue hidden while you assemble it.',
+            'featured': 'Featured issues appear on the site home page.',
+        }
+
+    def __init__(self, *args, journal=None, **kwargs):
+        # unique_together is on (journal, volume, number), but the form never
+        # exposes `journal` — so Django's own uniqueness check cannot run and a
+        # duplicate would surface as an IntegrityError. Check it here instead.
+        self.journal = journal or getattr(self.instance, 'journal', None)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        volume, number = cleaned.get('volume'), cleaned.get('number', '')
+        if self.journal and volume:
+            clash = Issue.objects.filter(
+                journal=self.journal, volume=volume, number=number
+            ).exclude(pk=self.instance.pk)
+            if clash.exists():
+                raise forms.ValidationError(
+                    f'{self.journal.short_name} already has an issue for '
+                    f'Volume {volume}({number}).'
+                )
+        return cleaned
+
+
+class EditorialBoardMemberForm(forms.ModelForm):
+    """A person on a journal's public editorial board."""
+    class Meta:
+        model = EditorialBoardMember
+        fields = ('name', 'position', 'section', 'affiliation', 'email',
+                  'photo', 'bio', 'user', 'order', 'is_active')
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'e.g. Prof. Jane Doe',
+            }),
+            'position': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'e.g. Editor-in-Chief',
+            }),
+            'section': forms.Select(attrs={'class': 'form-select'}),
+            'affiliation': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'e.g. University of Jos',
+            }),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'photo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'bio': CKEditorWidget(),
+            'user': forms.Select(attrs={'class': 'form-select'}),
+            'order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        help_texts = {
+            'user': 'Optional. Listing someone here grants no permissions — '
+                    'use the Team tab for that.',
+            'order': 'Lower numbers appear first within a section.',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['user'].required = False
+        self.fields['user'].empty_label = '— no portal account —'
+
+
+class JournalPageForm(forms.ModelForm):
+    """A policy or guide page belonging to one journal."""
+    class Meta:
+        model = JournalPage
+        fields = ('title', 'slug', 'content', 'order', 'show_in_nav', 'is_published')
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'e.g. Submission Guide',
+            }),
+            'slug': forms.TextInput(attrs={
+                'class': 'form-control', 'placeholder': 'e.g. submission-guide',
+            }),
+            'content': CKEditorWidget(),
+            'order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'show_in_nav': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_published': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        help_texts = {
+            'slug': "Appears in the page's web address. Leave as suggested if unsure.",
+            'show_in_nav': "Show in the journal's navigation bar.",
+            'order': 'Lower numbers appear first.',
+        }
+
+    def __init__(self, *args, journal=None, **kwargs):
+        # Same reason as IssueForm: unique_together spans `journal`, which this
+        # form does not expose, so validate the pair by hand.
+        self.journal = journal or getattr(self.instance, 'journal', None)
+        super().__init__(*args, **kwargs)
+        self.fields['slug'].required = False
+
+    def clean_slug(self):
+        from django.utils.text import slugify
+        slug = self.cleaned_data.get('slug') or slugify(self.data.get('title', ''))
+        if not slug:
+            raise forms.ValidationError('Enter a title so a web address can be generated.')
+        clash = JournalPage.objects.filter(journal=self.journal, slug=slug)
+        if self.instance.pk:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise forms.ValidationError('This journal already has a page with that address.')
+        return slug
 
 
 ################### End Journal Content Forms #########################

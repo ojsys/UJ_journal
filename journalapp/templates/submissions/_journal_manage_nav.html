@@ -1,27 +1,42 @@
 {% comment %}Tab nav shared by the per-journal management pages. Pass `active`
-as one of: team, rubrics, checklist.{% endcomment %}
+as one of: settings, issues, board, pages, team, rubrics, checklist, fee.{% endcomment %}
 <div class="mb-4">
     <a href="{% url 'journal_manage_list' %}" class="text-muted d-inline-flex align-items-center gap-1 mb-2" style="font-size:13px;">
         <i class="material-icons" style="font-size:15px;">arrow_back</i> All journals
     </a>
-    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
         <div>
-            <span class="uj-kicker">{{ journal.department.name }}</span>
+            <span class="uj-kicker">{{ journal.abbreviation|default:"Journal" }}</span>
             <h1 class="mt-1 mb-0" style="font-size:28px;">{{ journal.name }}</h1>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{% url 'journal_team' journal.pk %}" class="btn btn-sm {% if active == 'team' %}btn-primary{% else %}btn-light{% endif %}">
-                <i class="material-icons" style="font-size:15px;">group</i> Team
-            </a>
-            <a href="{% url 'journal_rubrics' journal.pk %}" class="btn btn-sm {% if active == 'rubrics' %}btn-primary{% else %}btn-light{% endif %}">
-                <i class="material-icons" style="font-size:15px;">rule</i> Rubrics
-            </a>
-            <a href="{% url 'journal_checklist' journal.pk %}" class="btn btn-sm {% if active == 'checklist' %}btn-primary{% else %}btn-light{% endif %}">
-                <i class="material-icons" style="font-size:15px;">checklist</i> Checklist
-            </a>
-            <a href="{% url 'journal_fee' journal.pk %}" class="btn btn-sm {% if active == 'fee' %}btn-primary{% else %}btn-light{% endif %}">
-                <i class="material-icons" style="font-size:15px;">payments</i> Fee
-            </a>
-        </div>
+        <a href="{% url 'journal_home' journal.slug %}" class="btn btn-light btn-sm" target="_blank" rel="noopener">
+            <i class="material-icons" style="font-size:15px;">open_in_new</i> View public site
+        </a>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'journal_settings' journal.pk %}" class="btn btn-sm {% if active == 'settings' %}btn-primary{% else %}btn-light{% endif %}">
+            <i class="material-icons" style="font-size:15px;">tune</i> Profile
+        </a>
+        <a href="{% url 'journal_issues_manage' journal.pk %}" class="btn btn-sm {% if active == 'issues' %}btn-primary{% else %}btn-light{% endif %}">
+            <i class="material-icons" style="font-size:15px;">library_books</i> Issues
+        </a>
+        <a href="{% url 'journal_board_manage' journal.pk %}" class="btn btn-sm {% if active == 'board' %}btn-primary{% else %}btn-light{% endif %}">
+            <i class="material-icons" style="font-size:15px;">groups</i> Board
+        </a>
+        <a href="{% url 'journal_pages_manage' journal.pk %}" class="btn btn-sm {% if active == 'pages' %}btn-primary{% else %}btn-light{% endif %}">
+            <i class="material-icons" style="font-size:15px;">description</i> Pages
+        </a>
+        <a href="{% url 'journal_team' journal.pk %}" class="btn btn-sm {% if active == 'team' %}btn-primary{% else %}btn-light{% endif %}">
+            <i class="material-icons" style="font-size:15px;">badge</i> Team
+        </a>
+        <a href="{% url 'journal_rubrics' journal.pk %}" class="btn btn-sm {% if active == 'rubrics' %}btn-primary{% else %}btn-light{% endif %}">
+            <i class="material-icons" style="font-size:15px;">rule</i> Rubrics
+        </a>
+        <a href="{% url 'journal_checklist' journal.pk %}" class="btn btn-sm {% if active == 'checklist' %}btn-primary{% else %}btn-light{% endif %}">
+            <i class="material-icons" style="font-size:15px;">checklist</i> Checklist
+        </a>
+        <a href="{% url 'journal_fee' journal.pk %}" class="btn btn-sm {% if active == 'fee' %}btn-primary{% else %}btn-light{% endif %}">
+            <i class="material-icons" style="font-size:15px;">payments</i> Fee
+        </a>
     </div>
 </div>

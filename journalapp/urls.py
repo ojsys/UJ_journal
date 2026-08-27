@@ -5,6 +5,7 @@ from . import submission_views
 from . import content_views
 from . import reviewer_views
 from . import payment_views
+from . import journal_views
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -18,10 +19,21 @@ urlpatterns = [
     path('dashboard/reviewer/', views.reviewer_dashboard, name='reviewer_dashboard'),
     path('dashboard/admin/', views.admin_dashboard, name='admin_dashboard'),
     
-    # Department Journal URLs
-    path('departments/<int:department_id>/journal/', views.department_journal, name='department_journal'),
-    path('journals/', views.JournalListView.as_view(), name='journal_list'),
-    path('journals/<int:pk>/', views.journal_detail, name='journal_detail'),
+    # ------------------------------------------------------------------
+    # Public journal sites. Each journal gets its own slug-addressed space
+    # (home, board, issues, policy pages) rather than a single flat detail
+    # page, so JJEL / JOJWOL / Humanity each read as a journal of their own.
+    # ------------------------------------------------------------------
+    path('journals/', journal_views.journal_list, name='journal_list'),
+    path('journals/<slug:slug>/', journal_views.journal_home, name='journal_home'),
+    path('journals/<slug:slug>/editorial-board/', journal_views.journal_board, name='journal_board'),
+    path('journals/<slug:slug>/issues/', journal_views.journal_issues, name='journal_issues'),
+    path('journals/<slug:slug>/issues/<int:pk>/', journal_views.issue_detail, name='issue_detail'),
+    path('journals/<slug:slug>/submit/', journal_views.journal_submit, name='journal_submit'),
+    path('journals/<slug:slug>/p/<slug:page_slug>/', journal_views.journal_page, name='journal_page'),
+
+    # Old numeric journal links, kept alive as permanent redirects.
+    path('journal/<int:pk>/', journal_views.journal_legacy_redirect, name='journal_detail'),
     
     # Article URLs (renamed from Journal)
     path('articles/', views.ArticleListView.as_view(), name='article_list'),
@@ -44,13 +56,10 @@ urlpatterns = [
     path('management/hero-slides/create/', views.hero_slide_create, name='hero_slide_create'),
     path('management/hero-slides/<int:pk>/update/', views.hero_slide_update, name='hero_slide_update'),
     path('management/hero-slides/<int:pk>/delete/', views.hero_slide_delete, name='hero_slide_delete'),
-    # Add these URL patterns
-    path('admin/archived-journals/', views.archived_journals_list, name='archived_journals_list'),
-    path('admin/archived-journals/create/', views.archived_journal_create, name='archived_journal_create'),
-    path('admin/archived-journals/<int:pk>/update/', views.archived_journal_update, name='archived_journal_update'),
-    path('admin/archived-journals/<int:pk>/delete/', views.archived_journal_delete, name='archived_journal_delete'),
-    path('archives/', views.public_archived_journals, name='public_archived_journals'),
-    path('archives/<int:pk>/', views.archived_journal_detail, name='archived_journal_detail'),
+    # Site-wide archive across all journals. Per-journal editions live under
+    # the journal's own /journals/<slug>/issues/ space; issues are created and
+    # edited from the journal management hub, not a separate admin section.
+    path('archives/', journal_views.all_issues, name='all_issues'),
     
     # Password reset URLs
     path('password-reset/',
@@ -93,6 +102,30 @@ urlpatterns = [
     path('manage/journals/<int:pk>/team/', submission_views.journal_team, name='journal_team'),
     path('manage/journals/<int:pk>/team/<int:role_id>/revoke/',
          submission_views.journal_role_revoke, name='journal_role_revoke'),
+
+    # Journal profile (logo, about, ISSNs)
+    path('manage/journals/<int:pk>/settings/', content_views.journal_settings, name='journal_settings'),
+
+    # Journal issues (previous editions)
+    path('manage/journals/<int:pk>/issues/', content_views.journal_issues_manage, name='journal_issues_manage'),
+    path('manage/journals/<int:pk>/issues/<int:issue_id>/edit/',
+         content_views.issue_update, name='issue_update'),
+    path('manage/journals/<int:pk>/issues/<int:issue_id>/delete/',
+         content_views.issue_delete, name='issue_delete'),
+
+    # Journal editorial board (the public listing; permissions live under Team)
+    path('manage/journals/<int:pk>/board/', content_views.journal_board_manage, name='journal_board_manage'),
+    path('manage/journals/<int:pk>/board/<int:member_id>/edit/',
+         content_views.board_member_update, name='board_member_update'),
+    path('manage/journals/<int:pk>/board/<int:member_id>/delete/',
+         content_views.board_member_delete, name='board_member_delete'),
+
+    # Journal policy and guide pages
+    path('manage/journals/<int:pk>/pages/', content_views.journal_pages_manage, name='journal_pages_manage'),
+    path('manage/journals/<int:pk>/pages/<int:page_id>/edit/',
+         content_views.journal_page_update, name='journal_page_update'),
+    path('manage/journals/<int:pk>/pages/<int:page_id>/delete/',
+         content_views.journal_page_delete, name='journal_page_delete'),
 
     # Journal review rubrics
     path('manage/journals/<int:pk>/rubrics/', content_views.journal_rubrics, name='journal_rubrics'),

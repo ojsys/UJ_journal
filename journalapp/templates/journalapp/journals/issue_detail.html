@@ -1,0 +1,83 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ issue.label }} — {{ journal.name }}{% endblock %}
+
+{% block content %}
+{% include 'journalapp/journals/_journal_nav.html' with active='issues' %}
+
+<div class="container pb-5">
+    <a href="{% url 'journal_issues' journal.slug %}" class="text-muted d-inline-flex align-items-center gap-1 mb-3" style="font-size:13px;">
+        <i class="material-icons" style="font-size:15px;">arrow_back</i> All issues
+    </a>
+
+    <div class="uj-panel p-4 p-lg-5 mb-4">
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-8">
+                <span class="uj-kicker">{{ journal.abbreviation|default:journal.name }}</span>
+                <h1 class="mt-2 mb-2" style="font-size:clamp(24px,3vw,34px);">{{ issue.label }}</h1>
+                {% if issue.title %}<p class="mb-2" style="font-size:17px; color:var(--uj-text-2);">{{ issue.title }}</p>{% endif %}
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="uj-pill uj-pill--brand">{{ issue.published_date|date:"F Y" }}</span>
+                    <span class="uj-pill">{{ articles|length }} article{{ articles|length|pluralize }}</span>
+                </div>
+                {% if issue.description %}<p class="text-muted mt-3 mb-0" style="font-size:15px;">{{ issue.description|linebreaksbr }}</p>{% endif %}
+                {% if issue.document %}
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <a href="{{ issue.document.url }}" class="btn btn-primary" target="_blank" rel="noopener">
+                        <i class="material-icons" style="font-size:17px;">visibility</i> View full issue
+                    </a>
+                    <a href="{{ issue.document.url }}" class="btn btn-outline-primary" download>
+                        <i class="material-icons" style="font-size:17px;">download</i> Download PDF
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-lg-4 d-none d-lg-block">
+                {% if issue.cover_image %}
+                <img src="{{ issue.cover_image.url }}" alt="{{ issue.label }}" class="img-fluid" style="width:100%; max-height:260px; object-fit:cover; border-radius:var(--uj-r-lg);">
+                {% else %}
+                <div class="d-flex align-items-center justify-content-center" style="height:200px; background:var(--uj-grad); border-radius:var(--uj-r-lg); color:#fff;">
+                    <i class="material-icons" style="font-size:72px;">menu_book</i>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title" style="font-size:22px;">Table of contents</h2>
+    {% if articles %}
+    <div class="d-flex flex-column gap-3">
+        {% for article in articles %}
+        <div class="card card-hover">
+            <div class="card-body">
+                <a href="{% url 'article_detail' article.pk %}" class="text-decoration-none">
+                    <h5 class="mb-1" style="color:var(--uj-ink);">{{ article.title }}</h5>
+                </a>
+                <div class="text-muted mb-2" style="font-size:13px;">
+                    {{ article.author.get_full_name|default:article.author.email }}
+                    {% if article.page_numbers %}· pp. {{ article.page_numbers }}{% endif %}
+                    {% if article.category %}· {{ article.category.name }}{% endif %}
+                </div>
+                {% if article.abstract %}<div class="text-muted" style="font-size:14px;">{{ article.abstract|striptags|truncatewords:36 }}</div>{% endif %}
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <a href="{% url 'article_detail' article.pk %}" class="btn btn-outline-primary btn-sm">Read</a>
+                    <a href="{% url 'article_pdf' article.pk %}" class="btn btn-light btn-sm">
+                        <i class="material-icons" style="font-size:15px;">download</i> PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card"><div class="card-body text-center py-5">
+        <p class="text-muted mb-0">
+            {% if issue.document %}
+            The individual articles for this issue are not listed separately — use the full-issue PDF above.
+            {% else %}
+            No articles have been published in this issue yet.
+            {% endif %}
+        </p>
+    </div></div>
+    {% endif %}
+</div>
+{% endblock %}

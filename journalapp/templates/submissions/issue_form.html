@@ -1,0 +1,67 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ journal.name }} — edit issue{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {% include 'submissions/_journal_manage_nav.html' with active='issues' %}
+
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">Edit {{ issue.label }}</div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                        <div class="row">
+                            <div class="col-4">{% include 'submissions/_form_field.html' with field=form.volume %}</div>
+                            <div class="col-4">{% include 'submissions/_form_field.html' with field=form.number %}</div>
+                            <div class="col-4">{% include 'submissions/_form_field.html' with field=form.year %}</div>
+                        </div>
+                        {% include 'submissions/_form_field.html' with field=form.title %}
+                        {% include 'submissions/_form_field.html' with field=form.description %}
+                        {% include 'submissions/_form_field.html' with field=form.published_date %}
+                        {% if issue.document %}
+                        <p class="text-muted mb-1" style="font-size:13px;">
+                            Current file: <a href="{{ issue.document.url }}" target="_blank" rel="noopener">{{ issue.document.name }}</a>
+                        </p>
+                        {% endif %}
+                        {% include 'submissions/_form_field.html' with field=form.document %}
+                        {% include 'submissions/_form_field.html' with field=form.cover_image %}
+                        {% include 'submissions/_form_field.html' with field=form.is_published %}
+                        {% include 'submissions/_form_field.html' with field=form.featured %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">save</i> Save changes</button>
+                            <a href="{% url 'journal_issues_manage' journal.pk %}" class="btn btn-light">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Articles in this issue</div>
+                <div class="card-body p-0">
+                    {% if issue.articles.exists %}
+                    <ul class="list-group list-group-flush">
+                        {% for article in issue.articles.all %}
+                        <li class="list-group-item px-4 py-3">
+                            <a href="{% url 'article_detail' article.pk %}" style="font-size:14px;">{{ article.title }}</a>
+                            <div class="text-muted mt-1" style="font-size:12.5px;">{{ article.get_status_display }}{% if article.page_numbers %} · pp. {{ article.page_numbers }}{% endif %}</div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0" style="font-size:14px;">
+                            No articles yet. Articles are placed in an issue when they are published
+                            from a submission.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

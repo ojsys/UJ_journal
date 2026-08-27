@@ -1,0 +1,90 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ journal.name }} — editorial board{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {% include 'submissions/_journal_manage_nav.html' with active='board' %}
+
+    <div class="alert alert-info d-flex gap-2 align-items-start" style="font-size:14px;">
+        <i class="material-icons" style="font-size:19px;">info</i>
+        <div>
+            This is the <strong>public</strong> listing readers see. It grants no access to the
+            portal — use the <a href="{% url 'journal_team' journal.pk %}">Team</a> tab to give
+            someone editorial permissions.
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Board members</span>
+                    <span class="uj-pill uj-pill--brand">{{ members|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if members %}
+                    <ul class="list-group list-group-flush">
+                        {% for member in members %}
+                        <li class="list-group-item px-4 py-3">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div class="d-flex gap-3" style="min-width:0;">
+                                    {% if member.photo %}
+                                    <img class="uj-board-photo" style="width:48px;height:48px;" src="{{ member.photo.url }}" alt="{{ member.name }}">
+                                    {% else %}
+                                    <div class="uj-board-photo uj-board-photo--blank" style="width:48px;height:48px;font-size:17px;">{{ member.initials }}</div>
+                                    {% endif %}
+                                    <div style="min-width:0;">
+                                        <div class="fw-semibold" style="color:var(--uj-ink);">{{ member.name }}</div>
+                                        <div class="text-muted" style="font-size:13.5px;">{{ member.position }}{% if member.affiliation %} · {{ member.affiliation }}{% endif %}</div>
+                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                            <span class="uj-pill">{{ member.get_section_display }}</span>
+                                            {% if not member.is_active %}<span class="uj-pill uj-pill--warn">Hidden</span>{% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1 flex-none">
+                                    <a href="{% url 'board_member_update' journal.pk member.pk %}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="material-icons" style="font-size:15px;">edit</i></a>
+                                    <form method="post" action="{% url 'board_member_delete' journal.pk member.pk %}" onsubmit="return confirm('Remove {{ member.name|escapejs }} from the board?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Remove"><i class="material-icons" style="font-size:15px;">delete</i></button>
+                                    </form>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <h6>No board members yet</h6>
+                        <p class="text-muted mb-0" style="font-size:14px;">Add your editors and consultants so readers know who runs this journal.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Add a board member</div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                        {% include 'submissions/_form_field.html' with field=form.name %}
+                        {% include 'submissions/_form_field.html' with field=form.position %}
+                        {% include 'submissions/_form_field.html' with field=form.section %}
+                        {% include 'submissions/_form_field.html' with field=form.affiliation %}
+                        {% include 'submissions/_form_field.html' with field=form.email %}
+                        {% include 'submissions/_form_field.html' with field=form.photo %}
+                        {% include 'submissions/_form_field.html' with field=form.bio %}
+                        {% include 'submissions/_form_field.html' with field=form.user %}
+                        <div style="max-width:140px;">{% include 'submissions/_form_field.html' with field=form.order %}</div>
+                        {% include 'submissions/_form_field.html' with field=form.is_active %}
+                        <button type="submit" class="btn btn-primary w-100 justify-content-center"><i class="material-icons" style="font-size:17px;">person_add</i> Add member</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

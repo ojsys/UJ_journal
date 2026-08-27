@@ -1,0 +1,38 @@
+{% comment %}
+Masthead and sub-navigation shared by every page of one journal's site.
+Pass `active` as one of: home, board, issues, submit, page. When `active` is
+"page", also pass `active_page_slug`.
+{% endcomment %}
+<div class="uj-jmast">
+    <div class="container">
+        <div class="uj-jmast__top">
+            {% if journal.logo %}
+            <img class="uj-jmast__logo" src="{{ journal.logo.url }}" alt="{{ journal.name }}">
+            {% else %}
+            <div class="uj-jmast__logo uj-jmast__logo--text">{{ journal.abbreviation|default:journal.name|truncatechars:8 }}</div>
+            {% endif %}
+            <div class="flex-grow-1">
+                <h1 class="uj-jmast__title">{{ journal.name }}</h1>
+                {% if journal.tagline %}<p class="uj-jmast__tagline">{{ journal.tagline }}</p>{% endif %}
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    {% if journal.abbreviation %}<span class="uj-pill uj-pill--ghost">{{ journal.abbreviation }}</span>{% endif %}
+                    {% if journal.issn_print %}<span class="uj-pill uj-pill--ghost">ISSN (Print) {{ journal.issn_print }}</span>{% endif %}
+                    {% if journal.issn_online %}<span class="uj-pill uj-pill--ghost">ISSN (Online) {{ journal.issn_online }}</span>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <nav class="uj-jnav">
+        <div class="container">
+            <ul>
+                <li><a href="{% url 'journal_home' journal.slug %}" class="{% if active == 'home' %}active{% endif %}">Home</a></li>
+                <li><a href="{% url 'journal_board' journal.slug %}" class="{% if active == 'board' %}active{% endif %}">Editorial Board</a></li>
+                <li><a href="{% url 'journal_issues' journal.slug %}" class="{% if active == 'issues' %}active{% endif %}">Issues</a></li>
+                {% for p in journal.nav_pages %}
+                <li><a href="{% url 'journal_page' journal.slug p.slug %}" class="{% if active == 'page' and active_page_slug == p.slug %}active{% endif %}">{{ p.title }}</a></li>
+                {% endfor %}
+                <li><a href="{% url 'journal_submit' journal.slug %}" class="uj-jnav__cta">Submit a paper</a></li>
+            </ul>
+        </div>
+    </nav>
+</div>

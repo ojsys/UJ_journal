@@ -29,3 +29,6 @@ tmp/restart.txt
 .DS_Store
 .idea/
 .vscode/
+
+# Demo content bookkeeping (see: manage.py journal_demo)
+.journal_demo_manifest.json

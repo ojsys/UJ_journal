@@ -1,0 +1,23 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ page.title }} — {{ journal.name }}{% endblock %}
+
+{% block content %}
+{% include 'journalapp/journals/_journal_nav.html' with active='page' active_page_slug=page.slug %}
+
+<div class="container pb-5">
+    <div class="row">
+        <div class="col-lg-9 col-xl-8">
+            <span class="uj-kicker">{{ journal.abbreviation|default:journal.name }}</span>
+            <h1 class="mt-2 mb-4" style="font-size:clamp(26px,3.2vw,36px);">{{ page.title }}</h1>
+            <div class="uj-prose">{{ page.content|safe }}</div>
+
+            <div class="d-flex flex-wrap gap-2 mt-5 pt-4" style="border-top:1px solid var(--uj-border);">
+                <a href="{% url 'journal_submit' journal.slug %}" class="btn btn-primary">
+                    <i class="material-icons" style="font-size:17px;">upload</i> Submit a paper
+                </a>
+                <a href="{% url 'journal_home' journal.slug %}" class="btn btn-light">Back to {{ journal.abbreviation|default:"journal home" }}</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ journal.name }} — pages{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {% include 'submissions/_journal_manage_nav.html' with active='pages' %}
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Pages</span>
+                    <span class="uj-pill uj-pill--brand">{{ pages|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if pages %}
+                    <ul class="list-group list-group-flush">
+                        {% for page in pages %}
+                        <li class="list-group-item px-4 py-3">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div style="min-width:0;">
+                                    <div class="fw-semibold" style="color:var(--uj-ink);">
+                                        <span class="text-muted me-2" style="font-size:13px;">#{{ page.order }}</span>{{ page.title }}
+                                    </div>
+                                    <div class="text-muted mt-1" style="font-size:12.5px;">/journals/{{ journal.slug }}/p/{{ page.slug }}/</div>
+                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                        {% if page.is_published %}
+                                        <span class="uj-pill uj-pill--success">Published</span>
+                                        {% else %}
+                                        <span class="uj-pill uj-pill--warn">Draft</span>
+                                        {% endif %}
+                                        {% if page.show_in_nav %}<span class="uj-pill uj-pill--info">In navigation</span>{% endif %}
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1 flex-none">
+                                    {% if page.is_published %}
+                                    <a href="{% url 'journal_page' journal.slug page.slug %}" class="btn btn-light btn-sm" title="View public page" target="_blank" rel="noopener"><i class="material-icons" style="font-size:15px;">open_in_new</i></a>
+                                    {% endif %}
+                                    <a href="{% url 'journal_page_update' journal.pk page.pk %}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="material-icons" style="font-size:15px;">edit</i></a>
+                                    <form method="post" action="{% url 'journal_page_delete' journal.pk page.pk %}" onsubmit="return confirm('Delete &quot;{{ page.title|escapejs }}&quot;?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete"><i class="material-icons" style="font-size:15px;">delete</i></button>
+                                    </form>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <h6>No pages yet</h6>
+                        <p class="text-muted mb-0" style="font-size:14px;">
+                            Publish this journal's submission guide and policies so authors know the rules.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">Pages journals usually publish</div>
+                <div class="card-body">
+                    <p class="text-muted" style="font-size:13.5px;">
+                        Click one to start it — you still write the content yourself.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for title, slug in suggested_pages %}
+                        <button type="button" class="btn btn-light btn-sm js-suggest" data-title="{{ title }}" data-slug="{{ slug }}">
+                            <i class="material-icons" style="font-size:15px;">add</i> {{ title }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Add a page</div>
+                <div class="card-body">
+                    <form method="post" id="pageForm">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                        {% include 'submissions/_form_field.html' with field=form.title %}
+                        {% include 'submissions/_form_field.html' with field=form.slug %}
+                        {% include 'submissions/_form_field.html' with field=form.content %}
+                        <div style="max-width:140px;">{% include 'submissions/_form_field.html' with field=form.order %}</div>
+                        {% include 'submissions/_form_field.html' with field=form.show_in_nav %}
+                        {% include 'submissions/_form_field.html' with field=form.is_published %}
+                        <button type="submit" class="btn btn-primary w-100 justify-content-center"><i class="material-icons" style="font-size:17px;">add</i> Add page</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // The suggestion buttons only prefill title and address — the editor writes
+    // the content, so nothing is created behind their back.
+    document.querySelectorAll('.js-suggest').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var form = document.getElementById('pageForm');
+            form.querySelector('#{{ form.title.id_for_label }}').value = btn.dataset.title;
+            form.querySelector('#{{ form.slug.id_for_label }}').value = btn.dataset.slug;
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    });
+</script>
+{% endblock %}

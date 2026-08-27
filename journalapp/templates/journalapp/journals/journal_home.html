@@ -1,0 +1,195 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ journal.name }}{% endblock %}
+
+{% block content %}
+{% include 'journalapp/journals/_journal_nav.html' with active='home' %}
+
+<div class="container pb-5">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <!-- About the journal -->
+            <section class="uj-panel p-4 p-lg-5 mb-4">
+                <span class="uj-kicker">About the journal</span>
+                <h2 class="mt-2 mb-3" style="font-size:26px;">Aims and scope</h2>
+                {% if journal.about %}
+                <div class="uj-prose">{{ journal.about|safe }}</div>
+                {% elif journal.description %}
+                <div class="uj-prose">{{ journal.description|safe }}</div>
+                {% else %}
+                <p class="text-muted mb-0">
+                    {{ journal.name }} is a peer-reviewed academic journal of the University of Jos.
+                    Its editors have not published an aims-and-scope statement yet.
+                </p>
+                {% endif %}
+
+                {% if journal.published_by or journal.contact_email %}
+                <div class="d-flex flex-wrap gap-4 mt-4 pt-4" style="border-top:1px solid var(--uj-border); font-size:14px;">
+                    {% if journal.published_by %}
+                    <div><span class="text-muted d-block" style="font-size:12.5px;">Published by</span>
+                        <span class="fw-semibold">{{ journal.published_by }}</span></div>
+                    {% endif %}
+                    {% if journal.contact_email %}
+                    <div><span class="text-muted d-block" style="font-size:12.5px;">Contact</span>
+                        <a class="fw-semibold" href="mailto:{{ journal.contact_email }}">{{ journal.contact_email }}</a></div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- Current issue -->
+            {% if latest_issue %}
+            <section class="mb-4">
+                <div class="d-flex justify-content-between align-items-end mb-3">
+                    <div>
+                        <span class="uj-kicker">Current issue</span>
+                        <h2 class="mt-2 mb-0" style="font-size:24px;">{{ latest_issue.label }}</h2>
+                    </div>
+                    <a href="{% url 'journal_issues' journal.slug %}" class="btn btn-outline-primary btn-sm d-none d-sm-inline-flex">All issues</a>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        {% if latest_issue.title %}<h5 class="mb-2">{{ latest_issue.title }}</h5>{% endif %}
+                        {% if latest_issue.description %}<p class="text-muted" style="font-size:14.5px;">{{ latest_issue.description|truncatewords:40 }}</p>{% endif %}
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <a href="{% url 'issue_detail' journal.slug latest_issue.pk %}" class="btn btn-primary btn-sm">
+                                <i class="material-icons" style="font-size:16px;">menu_book</i> View contents
+                            </a>
+                            {% if latest_issue.document %}
+                            <a href="{{ latest_issue.document.url }}" class="btn btn-outline-primary btn-sm" download>
+                                <i class="material-icons" style="font-size:16px;">download</i> Download full issue
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Recent articles -->
+            <section>
+                <div class="d-flex justify-content-between align-items-end mb-3">
+                    <div>
+                        <span class="uj-kicker">Latest research</span>
+                        <h2 class="mt-2 mb-0" style="font-size:24px;">Recently published</h2>
+                    </div>
+                </div>
+                {% if recent_articles %}
+                <div class="d-flex flex-column gap-3">
+                    {% for article in recent_articles %}
+                    <a href="{% url 'article_detail' article.pk %}" class="card card-hover text-decoration-none">
+                        <div class="card-body">
+                            <h5 class="mb-1">{{ article.title }}</h5>
+                            <div class="text-muted mb-2" style="font-size:13px;">
+                                {{ article.author.get_full_name|default:article.author.email }}
+                                {% if article.issue %}· {{ article.issue.label }}{% endif %}
+                                {% if article.published_at %}· {{ article.published_at|date:"M Y" }}{% endif %}
+                            </div>
+                            {% if article.abstract %}<div class="text-muted" style="font-size:14px;">{{ article.abstract|striptags|truncatewords:30 }}</div>{% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="card"><div class="card-body text-center py-5">
+                    <p class="text-muted mb-0">No articles have been published in this journal yet.</p>
+                </div></div>
+                {% endif %}
+            </section>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h5 class="mb-2">Submit your manuscript</h5>
+                    <p class="text-muted" style="font-size:14px;">
+                        Every manuscript is reviewed blind — reviewers never see the author's name.
+                    </p>
+                    <a href="{% url 'journal_submit' journal.slug %}" class="btn btn-primary w-100 justify-content-center">
+                        <i class="material-icons" style="font-size:17px;">upload</i> Submit to {{ journal.abbreviation|default:"this journal" }}
+                    </a>
+                    <a href="{% url 'reviewer_apply' %}" class="d-inline-flex align-items-center gap-1 mt-3" style="font-size:13.5px;">
+                        <i class="material-icons" style="font-size:16px;">how_to_reg</i> Volunteer as a peer reviewer
+                    </a>
+                </div>
+            </div>
+
+            {% if lead_editors %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="material-icons align-middle me-1" style="font-size:18px;">groups</i> Editorial board</span>
+                    <a href="{% url 'journal_board' journal.slug %}" style="font-size:13px;">See all</a>
+                </div>
+                <div class="card-body d-flex flex-column gap-3">
+                    {% for member in lead_editors %}
+                    <div class="d-flex align-items-center gap-3">
+                        {% if member.photo %}
+                        <img class="uj-board-photo" style="width:48px;height:48px;" src="{{ member.photo.url }}" alt="{{ member.name }}">
+                        {% else %}
+                        <div class="uj-board-photo uj-board-photo--blank" style="width:48px;height:48px;font-size:17px;">{{ member.initials }}</div>
+                        {% endif %}
+                        <div style="min-width:0;">
+                            <div class="fw-semibold" style="color:var(--uj-ink); font-size:14.5px;">{{ member.name }}</div>
+                            <div class="text-muted" style="font-size:12.5px;">{{ member.position }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if recent_issues %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="material-icons align-middle me-1" style="font-size:18px;">library_books</i> Previous issues</span>
+                    <a href="{% url 'journal_issues' journal.slug %}" style="font-size:13px;">All {{ issue_count }}</a>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for issue in recent_issues %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <a href="{% url 'issue_detail' journal.slug issue.pk %}" style="font-size:14px;">{{ issue.label }}</a>
+                        {% if issue.document %}
+                        <a href="{{ issue.document.url }}" title="Download PDF" download><i class="material-icons" style="font-size:17px;">download</i></a>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if checklist_items %}
+            <div class="card mb-4">
+                <div class="card-header"><i class="material-icons align-middle me-1" style="font-size:18px;">checklist</i> Before you submit</div>
+                <div class="card-body">
+                    <p class="text-muted" style="font-size:13px;">You'll be asked to confirm the following.</p>
+                    <ul class="list-unstyled mb-0">
+                        {% for item in checklist_items %}
+                        <li class="d-flex gap-2 {% if not forloop.last %}mb-2{% endif %}" style="font-size:14px;">
+                            <i class="material-icons flex-none" style="font-size:18px; color:var(--uj-indigo);">check_circle</i>
+                            <span>{{ item.text }}{% if item.required %} <span class="text-danger">*</span>{% endif %}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <p class="text-muted mt-3 mb-0" style="font-size:12px;"><span class="text-danger">*</span> required</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if rubrics %}
+            <div class="card">
+                <div class="card-header"><i class="material-icons align-middle me-1" style="font-size:18px;">rule</i> Review rubrics</div>
+                <div class="card-body">
+                    <p class="text-muted" style="font-size:13px;">How submissions to this journal are assessed.</p>
+                    {% for rubric in rubrics %}
+                    <div class="{% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+                        <div class="fw-semibold" style="color:var(--uj-ink); font-size:14.5px;">{{ rubric.title }}</div>
+                        <div class="text-muted mt-1" style="font-size:13.5px;">{{ rubric.content|safe }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

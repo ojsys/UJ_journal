@@ -62,11 +62,21 @@
 
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav align-items-lg-center gap-lg-4 me-auto mt-3 mt-lg-0">
-                        <li class="nav-item">
-                            <a class="uj-nav-link" href="{% url 'journal_list' %}">Journals</a>
+                        <li class="nav-item dropdown">
+                            <a class="uj-nav-link dropdown-toggle" href="{% url 'journal_list' %}" id="journalsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Journals</a>
+                            <ul class="dropdown-menu">
+                                {% for j in nav_journals %}
+                                <li><a class="dropdown-item d-flex flex-column" href="{% url 'journal_home' j.slug %}">
+                                    <span class="fw-semibold">{{ j.abbreviation|default:j.name }}</span>
+                                    {% if j.abbreviation %}<small class="text-muted">{{ j.name }}</small>{% endif %}
+                                </a></li>
+                                {% endfor %}
+                                {% if nav_journals %}<li><hr class="dropdown-divider"></li>{% endif %}
+                                <li><a class="dropdown-item" href="{% url 'journal_list' %}">All journals</a></li>
+                            </ul>
                         </li>
                         <li class="nav-item">
-                            <a class="uj-nav-link" href="{% url 'public_archived_journals' %}">Archives</a>
+                            <a class="uj-nav-link" href="{% url 'all_issues' %}">Archives</a>
                         </li>
                         <li class="nav-item">
                             <a class="uj-nav-link" href="{% url 'article_search' %}">Search</a>
@@ -199,8 +209,10 @@
                     <h5>Explore</h5>
                     <ul class="list-unstyled d-grid gap-2">
                         <li><a href="{% url 'home' %}">Home</a></li>
-                        <li><a href="{% url 'journal_list' %}">Journals</a></li>
-                        <li><a href="{% url 'public_archived_journals' %}">Archives</a></li>
+                        {% for j in nav_journals %}
+                        <li><a href="{% url 'journal_home' j.slug %}">{{ j.abbreviation|default:j.name }}</a></li>
+                        {% endfor %}
+                        <li><a href="{% url 'all_issues' %}">Archives</a></li>
                         <li><a href="{% url 'article_search' %}">Search articles</a></li>
                     </ul>
                 </div>

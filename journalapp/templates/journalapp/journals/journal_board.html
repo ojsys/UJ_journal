@@ -1,0 +1,56 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}Editorial Board — {{ journal.name }}{% endblock %}
+
+{% block content %}
+{% include 'journalapp/journals/_journal_nav.html' with active='board' %}
+
+<div class="container pb-5">
+    <div class="mb-4">
+        <span class="uj-kicker">{{ journal.abbreviation|default:journal.name }}</span>
+        <h2 class="mt-2 mb-0" style="font-size:28px;">Editorial board</h2>
+    </div>
+
+    {% if has_members %}
+        {% for section in sections %}
+        <section class="mb-5">
+            <h3 class="uj-issue-year">{{ section.label }}</h3>
+            <div class="row g-4">
+                {% for member in section.members %}
+                <div class="col-md-6 col-xl-4">
+                    <div class="card h-100">
+                        <div class="card-body d-flex gap-3">
+                            {% if member.photo %}
+                            <img class="uj-board-photo" src="{{ member.photo.url }}" alt="{{ member.name }}">
+                            {% else %}
+                            <div class="uj-board-photo uj-board-photo--blank">{{ member.initials }}</div>
+                            {% endif %}
+                            <div style="min-width:0;">
+                                <h5 class="mb-1" style="font-size:16px;">{{ member.name }}</h5>
+                                <div class="fw-semibold" style="color:var(--uj-indigo-700); font-size:13.5px;">{{ member.position }}</div>
+                                {% if member.affiliation %}<div class="text-muted mt-1" style="font-size:13px;">{{ member.affiliation }}</div>{% endif %}
+                                {% if member.email %}
+                                <a href="mailto:{{ member.email }}" class="d-inline-flex align-items-center gap-1 mt-2" style="font-size:12.5px; word-break:break-all;">
+                                    <i class="material-icons" style="font-size:14px;">mail</i> {{ member.email }}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if member.bio %}
+                        <div class="card-body pt-0">
+                            <div class="uj-prose" style="font-size:14px;">{{ member.bio|safe }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    {% else %}
+        <div class="card"><div class="card-body text-center py-5">
+            <i class="material-icons mb-2" style="font-size:40px; color:var(--uj-muted-2);">groups</i>
+            <p class="text-muted mb-0">The editorial board for this journal has not been published yet.</p>
+        </div></div>
+    {% endif %}
+</div>
+{% endblock %}

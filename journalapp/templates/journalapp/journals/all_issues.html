@@ -1,0 +1,59 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}Archives{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="mb-4">
+        <span class="uj-kicker">Archive</span>
+        <h1 class="mt-2 mb-2">Published issues</h1>
+        <p class="text-muted mb-0" style="font-size:15.5px;">Every edition across all of the University of Jos journals.</p>
+    </div>
+
+    <form method="get" class="d-flex gap-2 mb-3" style="max-width:520px;">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search issues by title or volume…">
+        {% if selected_journal %}<input type="hidden" name="journal" value="{{ selected_journal.slug }}">{% endif %}
+        <button class="btn btn-primary" type="submit"><i class="material-icons" style="font-size:18px;">search</i></button>
+    </form>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="{% url 'all_issues' %}{% if query %}?q={{ query }}{% endif %}"
+           class="btn btn-light btn-sm {% if not selected_journal %}active{% endif %}">All journals</a>
+        {% for j in journals %}
+        <a href="{% url 'all_issues' %}?{% if query %}q={{ query }}&{% endif %}journal={{ j.slug }}"
+           class="btn btn-light btn-sm {% if selected_journal.pk == j.pk %}active{% endif %}">{{ j.abbreviation|default:j.name }}</a>
+        {% endfor %}
+    </div>
+
+    <div class="row g-4">
+        {% for issue in issues %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card card-hover h-100">
+                <div class="card-body d-flex flex-column">
+                    <span class="uj-kicker mb-2">{{ issue.journal.abbreviation|default:issue.journal.name }}</span>
+                    <h5 class="mb-2">{{ issue.title|default:issue.label }}</h5>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <span class="uj-pill">{{ issue.label }}</span>
+                        <span class="uj-pill">{{ issue.article_count }} article{{ issue.article_count|pluralize }}</span>
+                    </div>
+                    {% if issue.description %}<p class="text-muted mb-3" style="font-size:14px;">{{ issue.description|truncatewords:18 }}</p>{% endif %}
+                    <div class="d-flex gap-2 mt-auto pt-2">
+                        <a href="{% url 'issue_detail' issue.journal.slug issue.pk %}" class="btn btn-outline-primary btn-sm">View</a>
+                        {% if issue.document %}
+                        <a href="{{ issue.document.url }}" class="btn btn-primary btn-sm" download>
+                            <i class="material-icons" style="font-size:15px;">download</i> PDF
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info d-flex align-items-center"><i class="material-icons me-2">info</i>
+                {% if query or selected_journal %}No issues match that search.{% else %}No issues have been published yet.{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

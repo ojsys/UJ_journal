@@ -1,0 +1,36 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ journal.name }} — edit board member{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {% include 'submissions/_journal_manage_nav.html' with active='board' %}
+
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">Edit {{ member.name }}</div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                        {% include 'submissions/_form_field.html' with field=form.name %}
+                        {% include 'submissions/_form_field.html' with field=form.position %}
+                        {% include 'submissions/_form_field.html' with field=form.section %}
+                        {% include 'submissions/_form_field.html' with field=form.affiliation %}
+                        {% include 'submissions/_form_field.html' with field=form.email %}
+                        {% include 'submissions/_form_field.html' with field=form.photo %}
+                        {% include 'submissions/_form_field.html' with field=form.bio %}
+                        {% include 'submissions/_form_field.html' with field=form.user %}
+                        <div style="max-width:140px;">{% include 'submissions/_form_field.html' with field=form.order %}</div>
+                        {% include 'submissions/_form_field.html' with field=form.is_active %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">save</i> Save changes</button>
+                            <a href="{% url 'journal_board_manage' journal.pk %}" class="btn btn-light">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

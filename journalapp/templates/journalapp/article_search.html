@@ -24,10 +24,10 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label" for="departmentFilter">Department</label>
-                            <select class="form-select" id="departmentFilter" name="department">
-                                <option value="">All departments</option>
-                                {% for department in departments %}<option value="{{ department.id }}" {% if selected_department == department.id|stringformat:"i" %}selected{% endif %}>{{ department.name }}</option>{% endfor %}
+                            <label class="form-label" for="journalFilter">Journal</label>
+                            <select class="form-select" id="journalFilter" name="journal">
+                                <option value="">All journals</option>
+                                {% for journal in journals %}<option value="{{ journal.slug }}" {% if selected_journal == journal.slug %}selected{% endif %}>{{ journal.name }}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="mb-3">
@@ -73,12 +73,12 @@
 
             {% if is_paginated %}
             <nav class="mt-4"><ul class="pagination justify-content-center">
-                {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&department={{ selected_department }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}
+                {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&journal={{ selected_journal }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ page_obj.previous_page_number }}">Previous</a></li>{% endif %}
                 {% for num in page_obj.paginator.page_range %}
                     {% if page_obj.number == num %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&department={{ selected_department }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ num }}">{{ num }}</a></li>{% endif %}
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&journal={{ selected_journal }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ num }}">{{ num }}</a></li>{% endif %}
                 {% endfor %}
-                {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&department={{ selected_department }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}
+                {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?q={{ search_query }}&journal={{ selected_journal }}&category={{ selected_category }}&sort={{ selected_sort }}&page={{ page_obj.next_page_number }}">Next</a></li>{% endif %}
             </ul></nav>
             {% endif %}
             {% else %}

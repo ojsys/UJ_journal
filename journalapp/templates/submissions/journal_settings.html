@@ -1,0 +1,72 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ journal.name }} — settings{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {% include 'submissions/_journal_manage_nav.html' with active='settings' %}
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">Journal profile</div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+                        <h6 class="uj-kicker mb-3">Identity</h6>
+                        {% include 'submissions/_form_field.html' with field=form.name %}
+                        {% include 'submissions/_form_field.html' with field=form.abbreviation %}
+                        {% include 'submissions/_form_field.html' with field=form.tagline %}
+
+                        <h6 class="uj-kicker mb-3 mt-4">Artwork</h6>
+                        {% include 'submissions/_form_field.html' with field=form.logo %}
+                        {% include 'submissions/_form_field.html' with field=form.cover_image %}
+
+                        <h6 class="uj-kicker mb-3 mt-4">Aims and scope</h6>
+                        {% include 'submissions/_form_field.html' with field=form.about %}
+
+                        <h6 class="uj-kicker mb-3 mt-4">Publication details</h6>
+                        <div class="row">
+                            <div class="col-sm-6">{% include 'submissions/_form_field.html' with field=form.issn_print %}</div>
+                            <div class="col-sm-6">{% include 'submissions/_form_field.html' with field=form.issn_online %}</div>
+                        </div>
+                        {% include 'submissions/_form_field.html' with field=form.published_by %}
+                        {% include 'submissions/_form_field.html' with field=form.contact_email %}
+
+                        <button type="submit" class="btn btn-primary"><i class="material-icons" style="font-size:17px;">save</i> Save changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">Preview</div>
+                <div class="card-body">
+                    <p class="text-muted" style="font-size:14px;">
+                        This is what readers see at the journal's public address.
+                    </p>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        {% if journal.logo %}
+                        <img src="{{ journal.logo.url }}" alt="{{ journal.name }}" style="width:56px;height:56px;border-radius:12px;object-fit:cover;">
+                        {% else %}
+                        <div class="uj-board-photo uj-board-photo--blank" style="width:56px;height:56px;border-radius:12px;font-size:15px;">{{ journal.abbreviation|default:journal.name|truncatechars:6 }}</div>
+                        {% endif %}
+                        <div style="min-width:0;">
+                            <div class="fw-semibold" style="color:var(--uj-ink);">{{ journal.name }}</div>
+                            <div class="text-muted" style="font-size:12.5px;">/journals/{{ journal.slug }}/</div>
+                        </div>
+                    </div>
+                    <a href="{% url 'journal_home' journal.slug %}" class="btn btn-outline-primary btn-sm w-100 justify-content-center" target="_blank" rel="noopener">
+                        <i class="material-icons" style="font-size:15px;">open_in_new</i> View public page
+                    </a>
+                    <p class="text-muted mt-3 mb-0" style="font-size:12.5px;">
+                        The web address, ordering and visibility of a journal are set by site administrators.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

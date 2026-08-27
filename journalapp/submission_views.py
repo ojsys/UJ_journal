@@ -212,11 +212,17 @@ def submission_create(request):
             messages.success(request, 'Your article has been submitted successfully! You will be notified when it is reviewed.')
             return redirect('submission_list')
     else:
-        form = SubmissionForm()
+        # "Submit to JJEL" on a journal's own site arrives with ?journal=<pk>,
+        # so the author lands on a form that already knows which journal is meant.
+        requested = request.GET.get('journal')
+        initial = {}
+        if requested and Journal.objects.filter(pk=requested, is_active=True).exists():
+            initial['journal'] = requested
+        form = SubmissionForm(initial=initial)
 
     # Get all journals for card display, each with its active checklist items so
     # the form can reveal the right checklist for the chosen journal.
-    journals = Journal.objects.all().order_by('name').prefetch_related('checklist_items')
+    journals = Journal.objects.filter(is_active=True).prefetch_related('checklist_items')
 
     return render(request, 'submissions/submission_form.html', {
         'form': form,
@@ -791,7 +797,7 @@ def preview_extracted_content(request, pk):
         'extracted_citations': extracted.get('citations', ''),
     }
 
-    form = PublishArticleForm(initial=initial_data)
+    form = PublishArticleForm(initial=initial_data, journal=submission.journal)
 
     # Get categories for the submission's journal
     from .models import ArticleCategory
@@ -802,6 +808,7 @@ def preview_extracted_content(request, pk):
         'submission': submission,
         'extracted': extracted,
         'categories': categories,
+        'has_issues': submission.journal.issues.exists(),
     })
 
 
@@ -838,9 +845,9 @@ def publish_submission(request, pk):
         # Update POST data to use the new category ID
         post_data = request.POST.copy()
         post_data['category'] = category.id
-        form = PublishArticleForm(post_data)
+        form = PublishArticleForm(post_data, journal=submission.journal)
     else:
-        form = PublishArticleForm(request.POST)
+        form = PublishArticleForm(request.POST, journal=submission.journal)
 
     if form.is_valid():
         # Create the article

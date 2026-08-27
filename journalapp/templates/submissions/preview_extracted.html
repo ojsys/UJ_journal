@@ -87,9 +87,19 @@
                                 <input type="text" name="new_category" class="form-control" id="newCategoryInput" placeholder="Enter new category name">
                                 <small class="text-muted">Creates a new category for {{ submission.journal.name }}.</small>
                             </div>
-                            <div class="row">
-                                <div class="col-6 mb-3"><label class="form-label">Volume</label><input type="number" name="volume" class="form-control" value="{{ form.volume.value|default:'' }}"></div>
-                                <div class="col-6 mb-3"><label class="form-label">Issue</label><input type="number" name="issue" class="form-control" value="{{ form.issue.value|default:'' }}"></div>
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ form.issue.id_for_label }}">Publish in issue</label>
+                                {{ form.issue }}
+                                {% if has_issues %}
+                                <small class="text-muted">Placing the article in an issue adds it to that issue's table of contents.</small>
+                                {% else %}
+                                <small class="text-muted">
+                                    {{ submission.journal.name }} has no issues yet —
+                                    <a href="{% url 'journal_issues_manage' submission.journal.pk %}" target="_blank" rel="noopener">create one</a>
+                                    to group published articles into an edition.
+                                </small>
+                                {% endif %}
+                                {% if form.issue.errors %}<div class="text-danger small mt-1">{{ form.issue.errors }}</div>{% endif %}
                             </div>
                             <div class="row">
                                 <div class="col-6 mb-3"><label class="form-label">Start page</label><input type="number" name="page_start" class="form-control" value="{{ form.page_start.value|default:'' }}"></div>

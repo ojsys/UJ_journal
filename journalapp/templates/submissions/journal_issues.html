@@ -1,0 +1,85 @@
+{% extends 'journalapp/base.html' %}
+{% block title %}{{ journal.name }} — issues{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {% include 'submissions/_journal_manage_nav.html' with active='issues' %}
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Issues</span>
+                    <span class="uj-pill uj-pill--brand">{{ issues|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if issues %}
+                    <ul class="list-group list-group-flush">
+                        {% for issue in issues %}
+                        <li class="list-group-item px-4 py-3">
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div style="min-width:0;">
+                                    <div class="fw-semibold" style="color:var(--uj-ink);">{{ issue.label }}</div>
+                                    {% if issue.title %}<div class="text-muted mt-1" style="font-size:14px;">{{ issue.title }}</div>{% endif %}
+                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                        <span class="uj-pill">{{ issue.article_count }} article{{ issue.article_count|pluralize }}</span>
+                                        {% if issue.document %}<span class="uj-pill uj-pill--info">Full PDF</span>{% endif %}
+                                        {% if issue.featured %}<span class="uj-pill uj-pill--pink">Featured</span>{% endif %}
+                                        {% if issue.is_published %}
+                                        <span class="uj-pill uj-pill--success">Published</span>
+                                        {% else %}
+                                        <span class="uj-pill uj-pill--warn">Hidden</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1 flex-none">
+                                    <a href="{% url 'issue_detail' journal.slug issue.pk %}" class="btn btn-light btn-sm" title="View public page" target="_blank" rel="noopener"><i class="material-icons" style="font-size:15px;">open_in_new</i></a>
+                                    <a href="{% url 'issue_update' journal.pk issue.pk %}" class="btn btn-outline-primary btn-sm" title="Edit"><i class="material-icons" style="font-size:15px;">edit</i></a>
+                                    <form method="post" action="{% url 'issue_delete' journal.pk issue.pk %}" onsubmit="return confirm('Delete {{ issue.label|escapejs }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete"><i class="material-icons" style="font-size:15px;">delete</i></button>
+                                    </form>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <h6>No issues yet</h6>
+                        <p class="text-muted mb-0" style="font-size:14px;">
+                            Add an edition so readers can browse and download previous volumes.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header">Add an issue</div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                        <div class="row">
+                            <div class="col-4">{% include 'submissions/_form_field.html' with field=form.volume %}</div>
+                            <div class="col-4">{% include 'submissions/_form_field.html' with field=form.number %}</div>
+                            <div class="col-4">{% include 'submissions/_form_field.html' with field=form.year %}</div>
+                        </div>
+                        {% include 'submissions/_form_field.html' with field=form.title %}
+                        {% include 'submissions/_form_field.html' with field=form.description %}
+                        {% include 'submissions/_form_field.html' with field=form.published_date %}
+                        {% include 'submissions/_form_field.html' with field=form.document %}
+                        {% include 'submissions/_form_field.html' with field=form.cover_image %}
+                        {% include 'submissions/_form_field.html' with field=form.is_published %}
+                        {% include 'submissions/_form_field.html' with field=form.featured %}
+                        <button type="submit" class="btn btn-primary w-100 justify-content-center"><i class="material-icons" style="font-size:17px;">add</i> Add issue</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

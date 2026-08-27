@@ -1,8 +1,9 @@
 from django.contrib import admin
 from .models import (
     CustomUser, Department, Profile, ArticleCategory, Article,
-    Review, Comment, SiteSettings, HeroSlide, ArchivedJournal,
-    Journal, Rubric, Submission, Assignment, SubmissionMessage,
+    Review, Comment, SiteSettings, HeroSlide,
+    Journal, Issue, EditorialBoardMember, JournalPage,
+    Rubric, Submission, Assignment, SubmissionMessage,
     DocumentVersion, SubmissionLog, JournalRole, ChecklistItem, ChecklistResponse,
     ReviewRound, ReviewerApplication, JournalFee, Payment
 )
@@ -42,16 +43,76 @@ class JournalRoleInline(admin.TabularInline):
     fields = ('user', 'role', 'granted_by', 'granted_at')
 
 
+class EditorialBoardMemberInline(admin.TabularInline):
+    model = EditorialBoardMember
+    extra = 0
+    fields = ('name', 'position', 'section', 'affiliation', 'order', 'is_active')
+
+
+class JournalPageInline(admin.TabularInline):
+    model = JournalPage
+    extra = 0
+    prepopulated_fields = {'slug': ('title',)}
+    fields = ('title', 'slug', 'order', 'show_in_nav', 'is_published')
+
+
 @admin.register(Journal)
 class JournalAdmin(admin.ModelAdmin):
-    list_display = ('name', 'department', 'team_size')
-    list_filter = ('department',)
-    search_fields = ('name',)
-    inlines = [JournalRoleInline]
+    list_display = ('name', 'abbreviation', 'slug', 'order', 'is_active',
+                    'issue_count', 'team_size')
+    list_filter = ('is_active', 'department')
+    list_editable = ('order', 'is_active')
+    search_fields = ('name', 'abbreviation', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+    inlines = [EditorialBoardMemberInline, JournalPageInline, JournalRoleInline]
+    fieldsets = (
+        ('Identity', {
+            'fields': ('name', 'slug', 'abbreviation', 'tagline', 'logo', 'cover_image')
+        }),
+        ('About', {'fields': ('description', 'about')}),
+        ('Publication details', {
+            'fields': ('issn_print', 'issn_online', 'published_by', 'contact_email')
+        }),
+        ('Placement', {'fields': ('department', 'order', 'is_active')}),
+    )
 
     @admin.display(description='Editorial team')
     def team_size(self, obj):
         return obj.roles.count()
+
+    @admin.display(description='Issues')
+    def issue_count(self, obj):
+        return obj.issues.count()
+
+
+@admin.register(Issue)
+class IssueAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'journal', 'year', 'published_date',
+                    'article_count', 'is_published', 'featured')
+    list_filter = ('journal', 'year', 'is_published', 'featured')
+    search_fields = ('title', 'volume', 'number', 'journal__name')
+    date_hierarchy = 'published_date'
+
+    @admin.display(description='Articles')
+    def article_count(self, obj):
+        return obj.articles.count()
+
+
+@admin.register(EditorialBoardMember)
+class EditorialBoardMemberAdmin(admin.ModelAdmin):
+    list_display = ('name', 'position', 'journal', 'section', 'affiliation',
+                    'order', 'is_active')
+    list_filter = ('journal', 'section', 'is_active')
+    search_fields = ('name', 'position', 'affiliation')
+    autocomplete_fields = ('user',)
+
+
+@admin.register(JournalPage)
+class JournalPageAdmin(admin.ModelAdmin):
+    list_display = ('title', 'journal', 'slug', 'order', 'show_in_nav', 'is_published')
+    list_filter = ('journal', 'is_published', 'show_in_nav')
+    search_fields = ('title', 'content')
+    prepopulated_fields = {'slug': ('title',)}
 
 
 @admin.register(JournalRole)
@@ -134,25 +195,6 @@ class ChecklistResponseAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
-
-@admin.register(ArchivedJournal)
-class ArchivedJournalAdmin(admin.ModelAdmin):
-    list_display = ('title', 'department', 'volume', 'issue', 'publication_date', 'featured', 'uploaded_by', 'uploaded_at')
-    list_filter = ('department', 'publication_date', 'featured')
-    list_editable = ('featured',)
-    search_fields = ('title', 'description', 'volume', 'issue')
-    date_hierarchy = 'publication_date'
-    readonly_fields = ('uploaded_at', 'uploaded_by')
-    
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.select_related('department', 'uploaded_by')
-    
-    def save_model(self, request, obj, form, change):
-        if not change:  # Only set uploaded_by when creating a new object
-            obj.uploaded_by = request.user
-        super().save_model(request, obj, form, change)
-
 
 # ============================================================================
 # Submission Workflow Admin Models

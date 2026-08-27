@@ -19,10 +19,24 @@ from journalapp.models import (
     ArticleCategory,
     ArticleLog,
     Department,
+    Issue,
     Journal,
 )
 
 User = get_user_model()
+
+
+def get_or_create_issue(journal, volume, number):
+    """The edition these sample articles appear in, created on first run."""
+    issue, _ = Issue.objects.get_or_create(
+        journal=journal, volume=volume, number=number,
+        defaults={
+            'year': timezone.now().year,
+            'published_date': timezone.now().date(),
+            'is_published': True,
+        },
+    )
+    return issue
 
 
 ARTICLES = [
@@ -30,7 +44,7 @@ ARTICLES = [
         "title": "How Artificial Intelligence Is Reshaping the Modern Classroom",
         "keywords": "artificial intelligence, education, personalised learning, "
                     "intelligent tutoring, EdTech, generative AI",
-        "volume": "1", "issue": "1", "page_start": "1", "page_end": "14",
+        "volume": "1", "number": "1", "page_start": "1", "page_end": "14",
         "doi": "10.5555/unijos.ai.edu.2026.001",
         "abstract": (
             "<p>Artificial intelligence (AI) is moving from the periphery of "
@@ -92,7 +106,7 @@ ARTICLES = [
         "title": "AI, Academic Integrity and the Future of Assessment in Higher Education",
         "keywords": "generative AI, academic integrity, assessment, higher education, "
                     "ChatGPT, plagiarism, authentic assessment",
-        "volume": "1", "issue": "1", "page_start": "15", "page_end": "29",
+        "volume": "1", "number": "1", "page_start": "15", "page_end": "29",
         "doi": "10.5555/unijos.ai.edu.2026.002",
         "abstract": (
             "<p>The public release of powerful generative AI systems has forced "
@@ -184,8 +198,9 @@ class Command(BaseCommand):
             article.abstract = data['abstract']
             article.content = data['content']
             article.keywords = data['keywords']
-            article.volume = data['volume']
-            article.issue = data['issue']
+            # Editions are real records now, so the article joins one rather
+            # than carrying loose volume/issue text.
+            article.issue = get_or_create_issue(journal, data['volume'], data['number'])
             article.page_start = data['page_start']
             article.page_end = data['page_end']
             article.doi = data['doi']

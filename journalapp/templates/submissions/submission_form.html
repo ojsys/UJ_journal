@@ -46,14 +46,16 @@
                     <div class="col-md-6 col-lg-4">
                         <div class="card journal-card {% if form.journal.value == journal.pk|stringformat:'i' %}selected{% endif %}" data-journal-id="{{ journal.pk }}" onclick="selectJournal({{ journal.pk }})">
                             <i class="material-icons check-icon">check_circle</i>
-                            <div class="card-header"><h6 class="mb-0 text-truncate">{{ journal.name }}</h6></div>
+                            <div class="card-header"><h6 class="mb-0 text-truncate">{{ journal.abbreviation|default:journal.name }}</h6></div>
                             <div class="card-body">
                                 <div class="d-flex align-items-start gap-3">
                                     {% if journal.logo %}<img src="{{ journal.logo.url }}" alt="{{ journal.name }}" class="journal-logo">
                                     {% else %}<div class="journal-placeholder-icon"><i class="material-icons">menu_book</i></div>{% endif %}
                                     <div class="flex-grow-1">
-                                        {% if journal.issn %}<small class="text-muted d-block">ISSN: {{ journal.issn }}</small>{% endif %}
-                                        {% if journal.description %}<small class="text-muted">{{ journal.description|truncatewords:12 }}</small>{% endif %}
+                                        {% if journal.abbreviation %}<small class="d-block fw-semibold" style="color:var(--uj-ink);">{{ journal.name }}</small>{% endif %}
+                                        {% if journal.issn_print %}<small class="text-muted d-block">ISSN: {{ journal.issn_print }}</small>{% endif %}
+                                        {% if journal.tagline %}<small class="text-muted">{{ journal.tagline|truncatewords:14 }}</small>
+                                        {% elif journal.description %}<small class="text-muted">{{ journal.description|striptags|truncatewords:12 }}</small>{% endif %}
                                     </div>
                                 </div>
                             </div>

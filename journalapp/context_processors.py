@@ -1,4 +1,4 @@
-from .models import SiteSettings
+from .models import Journal, SiteSettings
 from .permissions import CONTENT_ROLES, WORKFLOW_ROLES, can_manage_any_journal
 
 
@@ -29,4 +29,17 @@ def journal_roles(request):
         'can_manage_journals': can_manage_any_journal(user, roles=WORKFLOW_ROLES),
         # Manages journal content (rubrics, checklist, team) on at least one.
         'can_manage_journal_content': can_manage_any_journal(user, roles=CONTENT_ROLES),
+    }
+
+
+def nav_journals(request):
+    """The journals to list in the main navigation dropdown.
+
+    The nav used to link to a single flat journal list. Since the portal now
+    fronts three separate journals, every page offers them directly.
+    """
+    return {
+        'nav_journals': Journal.objects.filter(is_active=True).only(
+            'name', 'slug', 'abbreviation'
+        )
     }
